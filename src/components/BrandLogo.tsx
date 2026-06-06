@@ -1,23 +1,25 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { View, Text, Image, StyleSheet } from "react-native";
 
 import { colors, spacing } from "../theme";
 
 interface Props {
-  /** Wordmark font size; the leaf scales with it. Default 22. */
+  /** Wordmark font size; the logo mark scales with it. Default 22. */
   size?: number;
-  /** Hide the wordmark and show only the leaf mark. */
+  /** Hide the wordmark and show only the logo mark. */
   iconOnly?: boolean;
 }
 
-/** NutriPen brand mark: a green leaf + wordmark. */
+/** NutriPen brand mark: the leaf "N" logo + wordmark. */
 export function BrandLogo({ size = 22, iconOnly = false }: Props) {
+  const mark = size * 1.9;
   return (
     <View style={styles.row}>
-      <View style={[styles.leafWrap, { width: size * 1.5, height: size * 1.5 }]}>
-        <Ionicons name="leaf" size={size} color={colors.primary} />
-      </View>
+      <Image
+        source={require("../../assets/app-logo.png")}
+        style={{ width: mark, height: mark }}
+        resizeMode="contain"
+      />
       {!iconOnly && (
         <Text style={[styles.wordmark, { fontSize: size }]}>NutriPen</Text>
       )}
@@ -26,12 +28,6 @@ export function BrandLogo({ size = 22, iconOnly = false }: Props) {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  leafWrap: {
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 999,
-    backgroundColor: colors.tint,
-  },
+  row: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   wordmark: { fontWeight: "800", color: colors.text, letterSpacing: -0.3 },
 });
