@@ -27,7 +27,7 @@ export class WebhookTimeoutError extends Error {
 
 /**
  * Upload the compressed JPEG to the n8n scan webhook as raw binary, with a hard
- * 15s timeout (PRD §5). Uses expo-file-system's BINARY_CONTENT upload (reliable
+ * timeout (WEBHOOK_TIMEOUT_MS). Uses expo-file-system's BINARY_CONTENT upload (reliable
  * on-device, unlike fetch+Blob) and sends Content-Type: image/jpeg so Gemini
  * accepts the image (it rejects application/octet-stream).
  * Throws WebhookTimeoutError on timeout.

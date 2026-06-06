@@ -64,6 +64,22 @@ describe("parseScanResult", () => {
     expect(res.calories).toBe(0);
   });
 
+  it("accepts the n8n clean contract (flat object from the Format Response node)", () => {
+    // As of the n8n "Format Response" Code node, the webhook returns this
+    // unwrapped shape directly instead of Gemini's raw envelope. parseScan
+    // stays as a defensive layer that normalizes it.
+    const res = parseScanResult({
+      items: [{ name: "Jeruk", portion: "1 buah (100-120g)", estimatedCalories: 60 }],
+      totalCalories: 60,
+      confidence: "high",
+      notes: "One small orange.",
+    });
+    expect(res.calories).toBe(60);
+    expect(res.confidence).toBe(0.95);
+    expect(res.foodName).toBe("Jeruk");
+    expect(res.notes).toBe("One small orange.");
+  });
+
   it("accepts an already-flat object shape", () => {
     const res = parseScanResult({
       items: [{ name: "Soto", portion: "1 mangkok", estimatedCalories: 300 }],

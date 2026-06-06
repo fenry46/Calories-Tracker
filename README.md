@@ -44,10 +44,13 @@ supabase/migrations/  SQL applied to the project (schema, RLS, RPCs)
 
 ## Food scan flow
 Camera/gallery → downscale to JPEG → **POST raw bytes with `Content-Type: image/jpeg`**
-to the n8n webhook (15s timeout) → Gemini analyzes the image → the response
-(Gemini's raw nested JSON) is flattened by `src/utils/parseScan.ts` into
-`{ foodName, calories, confidence, items, notes }` → logged via the `add_food_entry`
-RPC. Sending `application/octet-stream` will fail — Gemini rejects that MIME type.
+to the n8n webhook (15s timeout) → Gemini analyzes the image → an n8n
+`Format Response` Code node unwraps Gemini's envelope and the webhook returns a
+clean contract `{ items, totalCalories, confidence, notes }` → `src/utils/parseScan.ts`
+normalizes it into `{ foodName, calories, confidence, items, notes }` (kept as a
+defensive layer that also still tolerates the old raw shape) → logged via the
+`add_food_entry` RPC. Sending `application/octet-stream` will fail — Gemini rejects
+that MIME type.
 
 ## Database
 Three tables (`user_profiles`, `daily_logs`, `food_entries`) with RLS so each
@@ -63,5 +66,3 @@ npx tsc --noEmit
 
 ## Not yet implemented (follow-ups)
 - Google / Apple OAuth (email/password is wired up now)
-- A transform node in the n8n workflow so it returns a clean contract (the app
-  currently parses Gemini's raw response in `parseScan.ts`)
