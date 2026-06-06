@@ -26,5 +26,10 @@ export const ENV = {
   ),
 } as const;
 
-/** Hard timeout for the n8n scan webhook (PRD §5: 15s). */
-export const WEBHOOK_TIMEOUT_MS = 15_000;
+/**
+ * Hard timeout for the n8n scan webhook. The PRD (§5) suggested 15s, but Gemini
+ * 2.5-flash image analysis alone takes ~13-14s, and the budget must also cover
+ * the image upload and response download — 15s times out on real scans. 35s
+ * gives comfortable headroom while still failing fast on a dead connection.
+ */
+export const WEBHOOK_TIMEOUT_MS = 35_000;
