@@ -1,15 +1,12 @@
 import React, { useMemo, useState } from "react";
-import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-  Alert,
-  ActivityIndicator,
-} from "react-native";
+import { View, Text, StyleSheet, Alert, TextInput } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { MetricInput } from "../components/MetricInput";
+import { Segmented } from "../components/Segmented";
+import { BrandLogo } from "../components/BrandLogo";
+import { InfoBox } from "../components/InfoBox";
+import { AppButton } from "../components/AppButton";
 import { useCalorieStore } from "../store/useCalorieStore";
 import type { BiologicalSex, WeightGoal } from "../types/models";
 import {
@@ -27,12 +24,19 @@ const GOAL_LABELS: Record<WeightGoal, string> = {
   GAIN: "Gain weight",
 };
 
+const GOAL_DESCRIPTIONS: Record<WeightGoal, string> = {
+  LOSE: "Create a calorie deficit",
+  MAINTAIN: "Keep a balanced intake",
+  GAIN: "Increase calories and build",
+};
+
 export function OnboardingScreen() {
   const createProfile = useCalorieStore((s) => s.createProfile);
 
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
 
+  const [name, setName] = useState("");
   const [sex, setSex] = useState<BiologicalSex | null>(null);
   const [age, setAge] = useState(25);
 
@@ -75,18 +79,20 @@ export function OnboardingScreen() {
     }
   };
 
-  const steps = ["Sex", "Age", "Weight", "Height", "Goal"];
+  const steps = ["Name", "Sex", "Age", "Weight", "Height", "Goal"];
   const canAdvance =
-    (step === 0 && !!sex) ||
-    (step === 1 && age > 0) ||
-    (step === 2 && weight > 0) ||
-    (step === 3 && height > 0) ||
-    (step === 4 && !!goal);
+    (step === 0 && name.trim().length > 0) ||
+    (step === 1 && !!sex) ||
+    (step === 2 && age > 0) ||
+    (step === 3 && weight > 0) ||
+    (step === 4 && height > 0) ||
+    (step === 5 && !!goal);
 
   const submit = async () => {
     if (!sex || !goal) return;
     setSubmitting(true);
     const { error } = await createProfile({
+      name: name.trim(),
       biologicalSex: sex,
       age,
       weightKg,
@@ -101,6 +107,14 @@ export function OnboardingScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
+        {/* brand + step count */}
+        <View style={styles.headerRow}>
+          <BrandLogo size={20} />
+          <Text style={styles.stepCount}>
+            {step + 1} of {steps.length}
+          </Text>
+        </View>
+
         {/* progress dots */}
         <View style={styles.progress}>
           {steps.map((_, i) => (
@@ -111,12 +125,26 @@ export function OnboardingScreen() {
           ))}
         </View>
 
-        <Text style={styles.stepLabel}>
-          Step {step + 1} of {steps.length}
-        </Text>
-
         <View style={styles.body}>
           {step === 0 && (
+            <View>
+              <Text style={styles.segTitle}>What's your name?</Text>
+              <Text style={styles.segCaption}>So we can personalize your dashboard.</Text>
+              <TextInput
+                style={styles.nameInput}
+                placeholder="Your name"
+                placeholderTextColor={colors.muted}
+                value={name}
+                onChangeText={setName}
+                autoCapitalize="words"
+                autoFocus
+                returnKeyType="next"
+                onSubmitEditing={() => canAdvance && setStep(1)}
+              />
+            </View>
+          )}
+
+          {step === 1 && (
             <Segmented<BiologicalSex>
               title="Biological sex"
               caption="Used for an accurate BMR calculation."
@@ -129,7 +157,7 @@ export function OnboardingScreen() {
             />
           )}
 
-          {step === 1 && (
+          {step === 2 && (
             <MetricInput
               label="Age"
               value={age}
@@ -140,7 +168,7 @@ export function OnboardingScreen() {
             />
           )}
 
-          {step === 2 && (
+          {step === 3 && (
             <MetricInput
               label="Weight"
               value={weight}
@@ -153,28 +181,38 @@ export function OnboardingScreen() {
             />
           )}
 
-          {step === 3 && (
-            <MetricInput
-              label="Height"
-              value={height}
-              onChange={setHeight}
-              min={1}
-              step={heightUnit === "cm" ? 1 : 0.5}
-              precision={heightUnit === "cm" ? 0 : 1}
-              unit={heightUnit}
-              onToggleUnit={toggleHeightUnit}
-            />
-          )}
-
           {step === 4 && (
             <View>
+              <MetricInput
+                label="Height"
+                value={height}
+                onChange={setHeight}
+                min={1}
+                step={heightUnit === "cm" ? 1 : 0.5}
+                precision={heightUnit === "cm" ? 0 : 1}
+                unit={heightUnit}
+                onToggleUnit={toggleHeightUnit}
+              />
+              <View style={styles.infoWrap}>
+                <InfoBox>
+                  We use your height, weight and age to estimate your basal
+                  metabolic rate and set an accurate daily target.
+                </InfoBox>
+              </View>
+            </View>
+          )}
+
+          {step === 5 && (
+            <View>
               <Segmented<WeightGoal>
-                title="Your goal"
+                title="What's your main goal?"
+                caption="You can change this later in Settings."
                 value={goal}
                 onChange={setGoal}
                 options={(Object.keys(GOAL_LABELS) as WeightGoal[]).map((g) => ({
                   value: g,
                   label: GOAL_LABELS[g],
+                  description: GOAL_DESCRIPTIONS[g],
                 }))}
               />
               {previewTarget != null && (
@@ -189,33 +227,28 @@ export function OnboardingScreen() {
 
         <View style={styles.nav}>
           {step > 0 && (
-            <Pressable
-              style={[styles.navBtn, styles.backBtn]}
+            <AppButton
+              label="Back"
+              variant="secondary"
               onPress={() => setStep(step - 1)}
-            >
-              <Text style={styles.backText}>Back</Text>
-            </Pressable>
+              style={styles.navBtn}
+            />
           )}
           {step < steps.length - 1 ? (
-            <Pressable
-              style={[styles.navBtn, styles.nextBtn, !canAdvance && styles.disabled]}
+            <AppButton
+              label="Next"
               onPress={() => canAdvance && setStep(step + 1)}
               disabled={!canAdvance}
-            >
-              <Text style={styles.nextText}>Next</Text>
-            </Pressable>
+              style={styles.navBtn}
+            />
           ) : (
-            <Pressable
-              style={[styles.navBtn, styles.nextBtn, (!canAdvance || submitting) && styles.disabled]}
+            <AppButton
+              label="Finish"
               onPress={submit}
-              disabled={!canAdvance || submitting}
-            >
-              {submitting ? (
-                <ActivityIndicator color={colors.white} />
-              ) : (
-                <Text style={styles.nextText}>Finish</Text>
-              )}
-            </Pressable>
+              loading={submitting}
+              disabled={!canAdvance}
+              style={styles.navBtn}
+            />
           )}
         </View>
       </View>
@@ -223,54 +256,20 @@ export function OnboardingScreen() {
   );
 }
 
-interface SegOption<T> {
-  value: T;
-  label: string;
-}
-function Segmented<T extends string>({
-  title,
-  caption,
-  value,
-  onChange,
-  options,
-}: {
-  title: string;
-  caption?: string;
-  value: T | null;
-  onChange: (v: T) => void;
-  options: SegOption<T>[];
-}) {
-  return (
-    <View>
-      <Text style={styles.segTitle}>{title}</Text>
-      {caption && <Text style={styles.segCaption}>{caption}</Text>}
-      <View style={styles.segGroup}>
-        {options.map((opt) => {
-          const active = opt.value === value;
-          return (
-            <Pressable
-              key={opt.value}
-              style={[styles.segItem, active && styles.segItemActive]}
-              onPress={() => onChange(opt.value)}
-            >
-              <Text style={[styles.segText, active && styles.segTextActive]}>
-                {opt.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   container: { flex: 1, padding: spacing.lg },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: spacing.lg,
+  },
+  stepCount: { color: colors.muted, fontSize: 14, fontWeight: "600" },
   progress: {
     flexDirection: "row",
     gap: spacing.sm,
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
   },
   dot: {
     flex: 1,
@@ -279,39 +278,27 @@ const styles = StyleSheet.create({
     backgroundColor: colors.track,
   },
   dotActive: { backgroundColor: colors.primary },
-  stepLabel: { color: colors.muted, marginBottom: spacing.lg },
   body: { flex: 1, justifyContent: "center" },
   nav: { flexDirection: "row", gap: spacing.md },
-  navBtn: {
-    flex: 1,
-    paddingVertical: spacing.md,
-    borderRadius: radius.md,
-    alignItems: "center",
-  },
-  backBtn: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
-  backText: { color: colors.text, fontWeight: "700", fontSize: 16 },
-  nextBtn: { backgroundColor: colors.primary },
-  nextText: { color: colors.white, fontWeight: "700", fontSize: 16 },
-  disabled: { opacity: 0.4 },
+  navBtn: { flex: 1 },
+  infoWrap: { marginTop: spacing.xl },
   segTitle: { fontSize: 22, fontWeight: "800", color: colors.text },
   segCaption: { color: colors.muted, marginTop: spacing.xs, marginBottom: spacing.lg },
-  segGroup: { gap: spacing.md, marginTop: spacing.md },
-  segItem: {
-    paddingVertical: spacing.lg,
-    borderRadius: radius.md,
+  nameInput: {
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.card,
-    alignItems: "center",
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    fontSize: 18,
+    color: colors.text,
   },
-  segItemActive: { borderColor: colors.primary, backgroundColor: "#ECFDF3" },
-  segText: { fontSize: 17, fontWeight: "600", color: colors.text },
-  segTextActive: { color: colors.primaryDark },
   preview: {
     marginTop: spacing.xl,
     padding: spacing.lg,
     borderRadius: radius.lg,
-    backgroundColor: "#ECFDF3",
+    backgroundColor: colors.tint,
     alignItems: "center",
   },
   previewLabel: { color: colors.muted, fontSize: 14 },

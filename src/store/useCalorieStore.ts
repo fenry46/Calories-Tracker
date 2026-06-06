@@ -12,6 +12,7 @@ import { calcDailyCalorieTarget } from "../utils/calorieCalculator";
 import { localDateISO } from "../utils/date";
 
 export interface ProfileInput {
+  name: string;
   biologicalSex: BiologicalSex;
   age: number;
   weightKg: number;
@@ -31,6 +32,7 @@ interface CalorieState {
 
   loadProfile: () => Promise<void>;
   createProfile: (input: ProfileInput) => Promise<{ error?: string }>;
+  updateProfile: (input: ProfileInput) => Promise<{ error?: string }>;
   selectDate: (date: string) => Promise<void>;
   refresh: () => Promise<void>;
   addFoodEntry: (
@@ -82,6 +84,7 @@ export const useCalorieStore = create<CalorieState>((set, get) => ({
       .from("user_profiles")
       .insert({
         user_id: user.id,
+        name: input.name,
         biological_sex: input.biologicalSex,
         age: input.age,
         weight: input.weightKg,
@@ -95,6 +98,56 @@ export const useCalorieStore = create<CalorieState>((set, get) => ({
     if (error) return { error: error.message };
     set({ profile: data });
     await get().selectDate(localDateISO());
+    return {};
+  },
+
+  // Edit an existing profile (from Settings). Recomputes the daily target from
+  // the new metrics — same Mifflin-St Jeor path as createProfile. Direct table
+  // update is allowed by the user_profiles RLS update policy.
+  updateProfile: async (input) => {
+    const { profile } = get();
+    if (!profile) return { error: "No profile" };
+
+    const target = calcDailyCalorieTarget(
+      {
+        biologicalSex: input.biologicalSex,
+        age: input.age,
+        weightKg: input.weightKg,
+        heightCm: input.heightCm,
+      },
+      input.goal
+    );
+
+    const { data, error } = await supabase
+      .from("user_profiles")
+      .update({
+        name: input.name,
+        biological_sex: input.biologicalSex,
+        age: input.age,
+        weight: input.weightKg,
+        height: input.heightCm,
+        goal: input.goal,
+        daily_calorie_target: target,
+      })
+      .eq("user_id", profile.user_id)
+      .select("*")
+      .single();
+
+    if (error) return { error: error.message };
+
+    // Keep TODAY's log target in sync with the new goal so the dashboard/ring
+    // reflect it immediately. get_or_create_log only sets total_target on
+    // creation, so an existing row keeps its old target until we update it.
+    // Past days are intentionally left as historical record. Allowed by the
+    // daily_logs RLS update policy.
+    await supabase
+      .from("daily_logs")
+      .update({ total_target: target })
+      .eq("user_profile_id", data.id)
+      .eq("date", localDateISO());
+
+    set({ profile: data });
+    await get().selectDate(get().selectedDate);
     return {};
   },
 

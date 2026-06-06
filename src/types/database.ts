@@ -90,6 +90,7 @@ export type Database = {
           goal: Database["public"]["Enums"]["weight_goal"]
           height: number
           id: string
+          name: string | null
           updated_at: string
           user_id: string
           weight: number
@@ -102,6 +103,7 @@ export type Database = {
           goal: Database["public"]["Enums"]["weight_goal"]
           height: number
           id?: string
+          name?: string | null
           updated_at?: string
           user_id: string
           weight: number
@@ -114,6 +116,7 @@ export type Database = {
           goal?: Database["public"]["Enums"]["weight_goal"]
           height?: number
           id?: string
+          name?: string | null
           updated_at?: string
           user_id?: string
           weight?: number

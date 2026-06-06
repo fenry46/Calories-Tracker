@@ -4,9 +4,11 @@ export const colors = {
   border: "#E5E7EB",
   text: "#111827",
   muted: "#6B7280",
-  primary: "#16A34A", // green — on track
-  primaryDark: "#15803D",
-  danger: "#DC2626", // red — target exceeded
+  primary: "#5B7E3C", // olive — on track
+  primaryDark: "#496530", // pressed / emphasis (derived dark olive)
+  accent: "#A2CB8B", // sage — secondary fills / soft accents
+  tint: "#E8F5BD", // lime — selected / success surfaces
+  danger: "#C44545", // brick red — target exceeded
   white: "#FFFFFF",
   track: "#E5E7EB",
 };
