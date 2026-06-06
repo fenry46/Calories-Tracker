@@ -1,0 +1,77 @@
+/// <reference types="jest" />
+import { parseScanResult } from "./parseScan";
+
+describe("parseScanResult", () => {
+  it("parses the real wrapped Gemini webhook shape (food detected)", () => {
+    const inner = JSON.stringify({
+      items: [
+        { name: "Nasi putih", portion: "1 centong", estimatedCalories: 220 },
+        { name: "Ayam goreng", portion: "1 potong", estimatedCalories: 240 },
+      ],
+      totalCalories: 460,
+      confidence: "high",
+      notes: "",
+    });
+    const webhookBody = [
+      { content: { parts: [{ text: inner }], role: "model" }, finishReason: "STOP", index: 0 },
+    ];
+
+    const res = parseScanResult(webhookBody);
+    expect(res.calories).toBe(460);
+    expect(res.confidence).toBe(0.95);
+    expect(res.items).toHaveLength(2);
+    expect(res.foodName).toBe("Nasi putih, Ayam goreng");
+  });
+
+  it("handles the no-food-detected response (empty items, low confidence)", () => {
+    const inner = JSON.stringify({
+      items: [],
+      totalCalories: 0,
+      confidence: "low",
+      notes: "No food items were detected.",
+    });
+    const res = parseScanResult([{ content: { parts: [{ text: inner }] } }]);
+    expect(res.items).toHaveLength(0);
+    expect(res.calories).toBe(0);
+    expect(res.confidence).toBe(0.4);
+    expect(res.foodName).toBe("");
+    expect(res.notes).toContain("No food");
+  });
+
+  it("tolerates markdown-fenced JSON", () => {
+    const inner = '```json\n{"items":[{"name":"Tempe","portion":"1","estimatedCalories":100}],"totalCalories":100,"confidence":"medium"}\n```';
+    const res = parseScanResult([{ content: { parts: [{ text: inner }] } }]);
+    expect(res.calories).toBe(100);
+    expect(res.confidence).toBe(0.7);
+    expect(res.foodName).toBe("Tempe");
+  });
+
+  it("falls back to summing item calories when totalCalories is missing", () => {
+    const inner = JSON.stringify({
+      items: [
+        { name: "A", portion: "1", estimatedCalories: 120 },
+        { name: "B", portion: "1", estimatedCalories: 80 },
+      ],
+      confidence: "medium",
+    });
+    const res = parseScanResult([{ content: { parts: [{ text: inner }] } }]);
+    expect(res.calories).toBe(200);
+  });
+
+  it("returns an empty result for garbage / unparseable bodies", () => {
+    const res = parseScanResult("not json at all");
+    expect(res.items).toHaveLength(0);
+    expect(res.calories).toBe(0);
+  });
+
+  it("accepts an already-flat object shape", () => {
+    const res = parseScanResult({
+      items: [{ name: "Soto", portion: "1 mangkok", estimatedCalories: 300 }],
+      totalCalories: 300,
+      confidence: 0.8,
+    });
+    expect(res.calories).toBe(300);
+    expect(res.confidence).toBe(0.8);
+    expect(res.foodName).toBe("Soto");
+  });
+});

@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "Calorie Tracker",
+    "slug": "calorie-tracker",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "We use the camera to scan your food and estimate its calories.",
+        "NSPhotoLibraryUsageDescription": "We let you pick food photos from your library to estimate calories."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "We use the camera to scan your food and estimate its calories."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "We let you pick food photos from your library to estimate calories."
+        }
+      ]
+    ]
+  }
+}
