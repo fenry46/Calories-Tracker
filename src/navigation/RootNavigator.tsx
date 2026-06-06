@@ -5,8 +5,8 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
 import { AuthScreen } from "../screens/AuthScreen";
 import { OnboardingScreen } from "../screens/OnboardingScreen";
-import { DashboardScreen } from "../screens/DashboardScreen";
 import { CameraScreen } from "../screens/CameraScreen";
+import { TabNavigator } from "./TabNavigator";
 import { useAuthStore } from "../store/useAuthStore";
 import { useCalorieStore } from "../store/useCalorieStore";
 import { colors } from "../theme";
@@ -57,7 +57,7 @@ export function RootNavigator() {
   } else {
     content = (
       <>
-        <Stack.Screen name="Dashboard" component={DashboardScreen} />
+        <Stack.Screen name="Tabs" component={TabNavigator} />
         <Stack.Screen
           name="Camera"
           component={CameraScreen}

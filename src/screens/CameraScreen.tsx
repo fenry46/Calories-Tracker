@@ -7,24 +7,29 @@ import {
   ActivityIndicator,
   TextInput,
   Alert,
+  ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
-import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { Ionicons } from "@expo/vector-icons";
 
+import { AppButton } from "../components/AppButton";
+import { LabeledField } from "../components/LabeledField";
 import { useCalorieStore } from "../store/useCalorieStore";
 import { uploadFoodImage, WebhookTimeoutError } from "../utils/imageUpload";
 import type { FoodEntry, ScanItem } from "../types/models";
 import { colors, radius, spacing } from "../theme";
-import type { RootStackParamList } from "../navigation/types";
+import type { RootStackScreenProps } from "../navigation/types";
 
-type Props = NativeStackScreenProps<RootStackParamList, "Camera">;
+type Props = RootStackScreenProps<"Camera">;
 type Phase = "capture" | "processing" | "result" | "error" | "manual";
+type Unit = "g" | "oz" | "cup";
 
 export function CameraScreen({ navigation }: Props) {
   const addFoodEntry = useCalorieStore((s) => s.addFoodEntry);
   const removeFoodEntry = useCalorieStore((s) => s.removeFoodEntry);
+  const entries = useCalorieStore((s) => s.entries);
 
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
@@ -40,6 +45,8 @@ export function CameraScreen({ navigation }: Props) {
   // manual entry fields
   const [manualName, setManualName] = useState("");
   const [manualCals, setManualCals] = useState("");
+  const [manualQty, setManualQty] = useState("1");
+  const [manualUnit, setManualUnit] = useState<Unit>("g");
 
   const processImage = async (uri: string) => {
     setPhase("processing");
@@ -104,7 +111,11 @@ export function CameraScreen({ navigation }: Props) {
       Alert.alert("Check your entry", "Enter a food name and a calorie amount.");
       return;
     }
-    const { entry, error } = await addFoodEntry(manualName.trim(), cals);
+    // Quantity + unit are cosmetic — folded into the stored food name.
+    const qty = manualQty.trim();
+    const label =
+      qty && qty !== "0" ? `${manualName.trim()} (${qty} ${manualUnit})` : manualName.trim();
+    const { entry, error } = await addFoodEntry(label, cals);
     if (error || !entry) {
       Alert.alert("Could not save", error ?? "Try again.");
       return;
@@ -135,6 +146,19 @@ export function CameraScreen({ navigation }: Props) {
     return (
       <View style={styles.flex}>
         <CameraView ref={cameraRef} style={styles.flex} facing="back" />
+
+        {/* Top-left close button (standard full-screen camera dismiss) */}
+        <SafeAreaView style={styles.topOverlay} edges={["top"]}>
+          <Pressable
+            style={styles.closeBtn}
+            onPress={() => navigation.goBack()}
+            hitSlop={10}
+            accessibilityLabel="Close"
+          >
+            <Ionicons name="close" size={26} color={colors.white} />
+          </Pressable>
+        </SafeAreaView>
+
         <SafeAreaView style={styles.cameraOverlay} edges={["bottom"]}>
           <View style={styles.cameraControls}>
             <Pressable style={styles.smallBtn} onPress={pickFromGallery}>
@@ -151,7 +175,6 @@ export function CameraScreen({ navigation }: Props) {
               <Text style={styles.smallBtnText}>Manual</Text>
             </Pressable>
           </View>
-          <CancelLink onPress={() => navigation.goBack()} light />
         </SafeAreaView>
       </View>
     );
@@ -204,38 +227,116 @@ export function CameraScreen({ navigation }: Props) {
   if (phase === "error") {
     return (
       <Centered>
-        <Text style={styles.errorEmoji}>⚠️</Text>
-        <Text style={styles.infoTitle}>Scan failed</Text>
-        <Text style={styles.infoText}>{errorMsg}</Text>
-        <PrimaryButton label="Retry" onPress={() => setPhase("capture")} />
-        <SecondaryButton label="Enter manually" onPress={() => setPhase("manual")} />
+        <View style={styles.errorCard}>
+          <View style={styles.errorIconWrap}>
+            <Ionicons name="alert-circle" size={30} color={colors.danger} />
+          </View>
+          <Text style={styles.infoTitle}>Couldn't recognize this item</Text>
+          <Text style={styles.infoText}>{errorMsg}</Text>
+          <View style={styles.errorBtns}>
+            <AppButton
+              label="Try again"
+              onPress={() => setPhase("capture")}
+              style={styles.flexBtn}
+            />
+            <AppButton
+              label="Enter manually"
+              variant="outline"
+              onPress={() => setPhase("manual")}
+              style={styles.flexBtn}
+            />
+          </View>
+        </View>
         <CancelLink onPress={() => navigation.goBack()} />
       </Centered>
     );
   }
 
   // manual entry
+  const recent = Array.from(new Set(entries.map((e) => e.food_name))).slice(0, 6);
   return (
-    <Centered>
-      <Text style={styles.infoTitle}>Log food manually</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Food name"
-        placeholderTextColor={colors.muted}
-        value={manualName}
-        onChangeText={setManualName}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Calories (kcal)"
-        placeholderTextColor={colors.muted}
-        keyboardType="number-pad"
-        value={manualCals}
-        onChangeText={setManualCals}
-      />
-      <PrimaryButton label="Add entry" onPress={submitManual} />
-      <CancelLink onPress={() => navigation.goBack()} />
-    </Centered>
+    <SafeAreaView style={styles.manualSafe}>
+      <ScrollView
+        contentContainerStyle={styles.manualContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={styles.manualTitle}>Enter manually</Text>
+
+        <LabeledField label="Food name">
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. Greek Yogurt, Plain"
+            placeholderTextColor={colors.muted}
+            value={manualName}
+            onChangeText={setManualName}
+          />
+        </LabeledField>
+
+        <View style={styles.manualRow}>
+          <View style={styles.qtyCol}>
+            <LabeledField label="Quantity">
+              <TextInput
+                style={styles.input}
+                placeholder="1"
+                placeholderTextColor={colors.muted}
+                keyboardType="decimal-pad"
+                value={manualQty}
+                onChangeText={setManualQty}
+              />
+            </LabeledField>
+          </View>
+          <View style={styles.unitCol}>
+            <LabeledField label="Unit">
+              <View style={styles.unitPills}>
+                {(["g", "oz", "cup"] as Unit[]).map((u) => {
+                  const active = manualUnit === u;
+                  return (
+                    <Pressable
+                      key={u}
+                      onPress={() => setManualUnit(u)}
+                      style={[styles.unitPill, active && styles.unitPillActive]}
+                    >
+                      <Text style={[styles.unitPillText, active && styles.unitPillTextActive]}>
+                        {u}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </LabeledField>
+          </View>
+        </View>
+
+        <LabeledField label="Calories">
+          <TextInput
+            style={styles.input}
+            placeholder="Calories (kcal)"
+            placeholderTextColor={colors.muted}
+            keyboardType="number-pad"
+            value={manualCals}
+            onChangeText={setManualCals}
+          />
+        </LabeledField>
+
+        {recent.length > 0 && (
+          <View style={styles.recentWrap}>
+            <Text style={styles.recentTitle}>Recent items</Text>
+            <View style={styles.chips}>
+              {recent.map((name) => (
+                <Pressable key={name} style={styles.chip} onPress={() => setManualName(name)}>
+                  <Text style={styles.chipText} numberOfLines={1}>
+                    {name}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        )}
+
+        <AppButton label="Add entry" onPress={submitManual} style={styles.manualSubmit} />
+        <CancelLink onPress={() => navigation.goBack()} />
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -282,6 +383,22 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+  },
+  topOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+  },
+  closeBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.pill,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   cameraControls: {
     flexDirection: "row",
@@ -332,7 +449,67 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   successEmoji: { fontSize: 56 },
-  errorEmoji: { fontSize: 56 },
+  errorCard: {
+    width: "100%",
+    alignItems: "center",
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+  },
+  errorIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.pill,
+    backgroundColor: "#F6DCDC",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.sm,
+  },
+  errorBtns: {
+    flexDirection: "row",
+    gap: spacing.md,
+    marginTop: spacing.md,
+    width: "100%",
+  },
+  flexBtn: { flex: 1 },
+  manualSafe: { flex: 1, backgroundColor: colors.bg },
+  manualContent: { padding: spacing.lg, paddingBottom: spacing.xl * 2 },
+  manualTitle: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: colors.text,
+    marginBottom: spacing.lg,
+  },
+  manualRow: { flexDirection: "row", gap: spacing.md },
+  qtyCol: { flex: 1 },
+  unitCol: { flex: 1.4 },
+  unitPills: { flexDirection: "row", gap: spacing.sm },
+  unitPill: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+  },
+  unitPillActive: { borderColor: colors.primary, backgroundColor: colors.tint },
+  unitPillText: { fontSize: 14, fontWeight: "700", color: colors.text },
+  unitPillTextActive: { color: colors.primaryDark },
+  recentWrap: { marginTop: spacing.sm, marginBottom: spacing.lg },
+  recentTitle: { fontSize: 14, fontWeight: "700", color: colors.text, marginBottom: spacing.sm },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  chip: {
+    backgroundColor: colors.tint,
+    borderRadius: radius.pill,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    maxWidth: "100%",
+  },
+  chipText: { color: colors.primaryDark, fontSize: 13, fontWeight: "600" },
+  manualSubmit: { marginTop: spacing.sm },
   breakdown: {
     width: "100%",
     backgroundColor: colors.card,
