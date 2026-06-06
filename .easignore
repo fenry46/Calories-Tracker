@@ -1,0 +1,40 @@
+# EAS Build upload ignore list. When present, EAS uses this instead of
+# .gitignore, so it mirrors .gitignore AND excludes dev-only tooling.
+
+# --- dev tooling / agent files (NOT part of the app) ---
+# These contain symlinks that break the EAS upload on Windows (EPERM symlink).
+.agents/
+.claude/
+.git/
+example-design/
+AGENTS.md
+CLAUDE.md
+.mcp.json
+skills-lock.json
+.tools/
+.apkcheck/
+
+# --- mirror of .gitignore ---
+node_modules/
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+.metro-health-check*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+.DS_Store
+*.pem
+.env
+.env*.local
+*.tsbuildinfo
+/ios
+/android

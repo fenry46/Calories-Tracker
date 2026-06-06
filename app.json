@@ -8,19 +8,25 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.fenry46.nutripen",
       "infoPlist": {
         "NSCameraUsageDescription": "We use the camera to scan your food and estimate its calories.",
         "NSPhotoLibraryUsageDescription": "We let you pick food photos from your library to estimate calories."
       }
     },
     "android": {
+      "package": "com.fenry46.nutripen",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -38,7 +44,13 @@
         {
           "photosPermission": "We let you pick food photos from your library to estimate calories."
         }
-      ]
-    ]
+      ],
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "cf6a829a-b5c9-423e-973a-ab973529ab62"
+      }
+    }
   }
 }

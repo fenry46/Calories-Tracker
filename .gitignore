@@ -1,5 +1,9 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
+# local diagnostic tooling (adb, downloaded APK) — not part of the project
+.tools/
+.apkcheck/
+
 # dependencies
 node_modules/
 
