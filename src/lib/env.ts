@@ -11,6 +11,11 @@ function required(name: string, value: string | undefined): string {
   return value;
 }
 
+const webhookUrl = required(
+  "EXPO_PUBLIC_WEBHOOK_URL",
+  process.env.EXPO_PUBLIC_WEBHOOK_URL
+);
+
 export const ENV = {
   supabaseUrl: required(
     "EXPO_PUBLIC_SUPABASE_URL",
@@ -20,10 +25,16 @@ export const ENV = {
     "EXPO_PUBLIC_SUPABASE_ANON_KEY",
     process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
   ),
-  webhookUrl: required(
-    "EXPO_PUBLIC_WEBHOOK_URL",
-    process.env.EXPO_PUBLIC_WEBHOOK_URL
-  ),
+  /** Image-scan webhook (binary JPEG upload). */
+  webhookUrl,
+  /**
+   * Text re-estimation webhook (JSON `{description}`). Defaults to the image
+   * webhook's `/track-calories` sibling `/track-calories-text` so existing
+   * `.env` files keep working; override with EXPO_PUBLIC_WEBHOOK_TEXT_URL.
+   */
+  webhookTextUrl:
+    process.env.EXPO_PUBLIC_WEBHOOK_TEXT_URL ||
+    webhookUrl.replace(/\/track-calories\b/, "/track-calories-text"),
 } as const;
 
 /**

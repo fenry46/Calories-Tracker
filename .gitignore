@@ -45,3 +45,11 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# AI / agent context (local tooling, not part of the app)
+AGENTS.md
+CLAUDE.md
+.claude/
+.agents/
+.mcp.json
+skills-lock.json

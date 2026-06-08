@@ -27,7 +27,7 @@ npm start              # then press i / a, or scan the QR with Expo Go
 |-----|---------|
 | `EXPO_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Supabase publishable/anon key |
-| `EXPO_PUBLIC_WEBHOOK_URL` | n8n `track-calories` webhook |
+| `EXPO_PUBLIC_WEBHOOK_URL` | n8n `track-calories` webhook (self-hosted: `https://pen8n.online/webhook/track-calories`) |
 
 ## Project layout
 ```
@@ -44,7 +44,9 @@ supabase/migrations/  SQL applied to the project (schema, RLS, RPCs)
 
 ## Food scan flow
 Camera/gallery → downscale to JPEG → **POST raw bytes with `Content-Type: image/jpeg`**
-to the n8n webhook (15s timeout) → Gemini analyzes the image → an n8n
+to the self-hosted n8n webhook (`https://pen8n.online/webhook/track-calories`, 35s
+timeout) → Gemini analyzes the image (the Gemini node has retry-on-fail enabled to
+ride out transient `503` overload responses) → an n8n
 `Format Response` Code node unwraps Gemini's envelope and the webhook returns a
 clean contract `{ items, totalCalories, confidence, notes }` → `src/utils/parseScan.ts`
 normalizes it into `{ foodName, calories, confidence, items, notes }` (kept as a

@@ -18,12 +18,19 @@ import { AppButton } from "../components/AppButton";
 import { LabeledField } from "../components/LabeledField";
 import { useCalorieStore } from "../store/useCalorieStore";
 import { uploadFoodImage, WebhookTimeoutError } from "../utils/imageUpload";
-import type { FoodEntry, ScanItem } from "../types/models";
+import { estimateFromText } from "../utils/estimateText";
+import type { FoodEntry, ScanItem, ScanResult } from "../types/models";
 import { colors, radius, spacing } from "../theme";
 import type { RootStackScreenProps } from "../navigation/types";
 
 type Props = RootStackScreenProps<"Camera">;
-type Phase = "capture" | "processing" | "result" | "error" | "manual";
+type Phase =
+  | "capture"
+  | "processing"
+  | "preview"
+  | "result"
+  | "error"
+  | "manual";
 type Unit = "g" | "oz" | "cup";
 
 export function CameraScreen({ navigation }: Props) {
@@ -41,6 +48,18 @@ export function CameraScreen({ navigation }: Props) {
     confidence: number;
     items: ScanItem[];
   } | null>(null);
+
+  // Editable scan preview (shown before anything is saved). `draft` keeps the
+  // model's confidence/notes; `items` is the editable per-component breakdown
+  // (the source of truth for the saved name + total); `draftName` is the
+  // whole-plate description used to re-estimate the entire list.
+  const [draft, setDraft] = useState<ScanResult | null>(null);
+  const [items, setItems] = useState<ScanItem[]>([]);
+  const [draftName, setDraftName] = useState("");
+  const [reestimating, setReestimating] = useState(false);
+  const [reestimatingIdx, setReestimatingIdx] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [estimatingManual, setEstimatingManual] = useState(false);
 
   // manual entry fields
   const [manualName, setManualName] = useState("");
@@ -60,14 +79,11 @@ export function CameraScreen({ navigation }: Props) {
         setPhase("error");
         return;
       }
-      const { entry, error } = await addFoodEntry(res.foodName, res.calories);
-      if (error || !entry) {
-        setErrorMsg(error ?? "Could not save the entry.");
-        setPhase("error");
-        return;
-      }
-      setResult({ entry, confidence: res.confidence, items: res.items });
-      setPhase("result");
+      // Show an editable preview — nothing is logged until the user confirms.
+      setDraft(res);
+      setItems(res.items);
+      setDraftName(res.foodName);
+      setPhase("preview");
     } catch (err) {
       setErrorMsg(
         err instanceof WebhookTimeoutError
@@ -76,6 +92,105 @@ export function CameraScreen({ navigation }: Props) {
       );
       setPhase("error");
     }
+  };
+
+  // Sum of the editable items — the live total shown and ultimately saved.
+  const itemsTotal = items.reduce(
+    (sum, it) => sum + (Number(it.estimatedCalories) || 0),
+    0
+  );
+
+  // Re-run the WHOLE plate from the description via the text model, replacing
+  // the item list. Keeps the user's typed description so they can keep refining.
+  const reestimate = async () => {
+    const desc = draftName.trim();
+    if (!desc) {
+      Alert.alert("Add a description", "Describe what you ate so we can re-estimate.");
+      return;
+    }
+    setReestimating(true);
+    try {
+      const res = await estimateFromText(desc);
+      if (res.items.length === 0 || res.calories <= 0) {
+        Alert.alert(
+          "Couldn't estimate that",
+          res.notes || "Try describing the food and portions more specifically."
+        );
+        return;
+      }
+      setDraft(res);
+      setItems(res.items);
+    } catch (err) {
+      Alert.alert(
+        "Re-estimate failed",
+        err instanceof WebhookTimeoutError
+          ? err.message
+          : "Something went wrong. Please try again."
+      );
+    } finally {
+      setReestimating(false);
+    }
+  };
+
+  const updateItem = (index: number, patch: Partial<ScanItem>) =>
+    setItems((prev) => prev.map((it, i) => (i === index ? { ...it, ...patch } : it)));
+
+  const removeItem = (index: number) =>
+    setItems((prev) => prev.filter((_, i) => i !== index));
+
+  const addItem = () =>
+    setItems((prev) => [...prev, { name: "", portion: "", estimatedCalories: 0 }]);
+
+  // Re-estimate a single item's calories from its name + portion.
+  const reestimateItem = async (index: number) => {
+    const it = items[index];
+    const desc = [it.name, it.portion].map((s) => s.trim()).filter(Boolean).join(", ");
+    if (!desc) {
+      Alert.alert("Add details", "Enter a name (and portion) for this item first.");
+      return;
+    }
+    setReestimatingIdx(index);
+    try {
+      const res = await estimateFromText(desc);
+      if (res.calories <= 0) {
+        Alert.alert(
+          "Couldn't estimate that",
+          res.notes || "Try a more specific name or portion."
+        );
+        return;
+      }
+      updateItem(index, { estimatedCalories: res.calories });
+    } catch (err) {
+      Alert.alert(
+        "Re-estimate failed",
+        err instanceof WebhookTimeoutError
+          ? err.message
+          : "Something went wrong. Please try again."
+      );
+    } finally {
+      setReestimatingIdx(null);
+    }
+  };
+
+  // Commit the previewed estimate. The food name is built from the item names
+  // (falling back to the description); calories is the live item total.
+  const saveDraft = async () => {
+    const name =
+      items.map((it) => it.name.trim()).filter(Boolean).join(", ") || draftName.trim();
+    if (!name || itemsTotal <= 0) {
+      Alert.alert("Check your entry", "Add at least one item with a name and calories.");
+      return;
+    }
+    setSaving(true);
+    const { entry, error } = await addFoodEntry(name, itemsTotal);
+    setSaving(false);
+    if (error || !entry) {
+      setErrorMsg(error ?? "Could not save the entry.");
+      setPhase("error");
+      return;
+    }
+    setResult({ entry, confidence: draft?.confidence ?? 1, items });
+    setPhase("result");
   };
 
   const takePhoto = async () => {
@@ -106,15 +221,50 @@ export function CameraScreen({ navigation }: Props) {
   };
 
   const submitManual = async () => {
-    const cals = parseInt(manualCals, 10);
-    if (!manualName.trim() || Number.isNaN(cals) || cals <= 0) {
-      Alert.alert("Check your entry", "Enter a food name and a calorie amount.");
+    const name = manualName.trim();
+    if (!name) {
+      Alert.alert("Check your entry", "Enter a food name.");
       return;
     }
-    // Quantity + unit are cosmetic — folded into the stored food name.
     const qty = manualQty.trim();
-    const label =
-      qty && qty !== "0" ? `${manualName.trim()} (${qty} ${manualUnit})` : manualName.trim();
+    const cals = parseInt(manualCals, 10);
+
+    // Calories left blank → estimate with the text model, then let the user
+    // review/adjust in the same preview as a scan (saved on confirm).
+    if (!manualCals.trim() || Number.isNaN(cals) || cals <= 0) {
+      const description =
+        qty && qty !== "0" ? `${qty} ${manualUnit} ${name}` : name;
+      setEstimatingManual(true);
+      try {
+        const res = await estimateFromText(description);
+        if (res.items.length === 0 || res.calories <= 0) {
+          Alert.alert(
+            "Couldn't estimate that",
+            res.notes ||
+              "Try a more specific name/portion, or enter the calories yourself."
+          );
+          return;
+        }
+        setDraft(res);
+        setItems(res.items);
+        setDraftName(description);
+        setPhase("preview");
+      } catch (err) {
+        Alert.alert(
+          "Estimate failed",
+          err instanceof WebhookTimeoutError
+            ? err.message
+            : "Something went wrong. Please try again."
+        );
+      } finally {
+        setEstimatingManual(false);
+      }
+      return;
+    }
+
+    // Calories provided → trust it, save directly. Quantity + unit are cosmetic,
+    // folded into the stored food name.
+    const label = qty && qty !== "0" ? `${name} (${qty} ${manualUnit})` : name;
     const { entry, error } = await addFoodEntry(label, cals);
     if (error || !entry) {
       Alert.alert("Could not save", error ?? "Try again.");
@@ -187,6 +337,130 @@ export function CameraScreen({ navigation }: Props) {
         <Text style={styles.infoTitle}>Scanning your food…</Text>
         <Text style={styles.infoText}>Identifying the item and estimating calories.</Text>
       </Centered>
+    );
+  }
+
+  if (phase === "preview") {
+    const busy = reestimating || saving || reestimatingIdx !== null;
+    const lowConfidence = (draft?.confidence ?? 1) < 0.6;
+    return (
+      <SafeAreaView style={styles.manualSafe}>
+        <ScrollView
+          contentContainerStyle={styles.manualContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.manualTitle}>Review &amp; adjust</Text>
+          <Text style={styles.previewHint}>
+            Tweak any item below, or re-describe the whole plate. Calories from
+            the AI — adjust for a more accurate count.
+          </Text>
+
+          <View style={styles.previewKcalCard}>
+            <Text style={styles.previewKcalValue}>{itemsTotal}</Text>
+            <Text style={styles.previewKcalUnit}>kcal total</Text>
+          </View>
+
+          {items.map((it, i) => (
+            <View key={i} style={styles.itemCard}>
+              <View style={styles.itemHeaderRow}>
+                <TextInput
+                  style={[styles.input, styles.itemNameInput]}
+                  placeholder="Food name"
+                  placeholderTextColor={colors.muted}
+                  value={it.name}
+                  onChangeText={(t) => updateItem(i, { name: t })}
+                />
+                <Pressable
+                  onPress={() => removeItem(i)}
+                  hitSlop={8}
+                  style={styles.itemIconBtn}
+                  accessibilityLabel="Remove item"
+                >
+                  <Ionicons name="trash-outline" size={20} color={colors.danger} />
+                </Pressable>
+              </View>
+
+              <View style={styles.itemBottomRow}>
+                <TextInput
+                  style={[styles.input, styles.itemPortionInput]}
+                  placeholder="Portion (e.g. 1 potong)"
+                  placeholderTextColor={colors.muted}
+                  value={it.portion}
+                  onChangeText={(t) => updateItem(i, { portion: t })}
+                />
+                <View style={styles.itemKcalWrap}>
+                  <TextInput
+                    style={[styles.input, styles.itemKcalInput]}
+                    placeholder="0"
+                    placeholderTextColor={colors.muted}
+                    keyboardType="number-pad"
+                    value={it.estimatedCalories ? String(it.estimatedCalories) : ""}
+                    onChangeText={(t) =>
+                      updateItem(i, {
+                        estimatedCalories: parseInt(t.replace(/[^0-9]/g, ""), 10) || 0,
+                      })
+                    }
+                  />
+                  <Text style={styles.itemKcalLabel}>kcal</Text>
+                </View>
+                <Pressable
+                  onPress={() => reestimateItem(i)}
+                  disabled={busy}
+                  hitSlop={8}
+                  style={styles.itemIconBtn}
+                  accessibilityLabel="Re-estimate this item"
+                >
+                  {reestimatingIdx === i ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <Ionicons name="sparkles-outline" size={20} color={colors.primary} />
+                  )}
+                </Pressable>
+              </View>
+            </View>
+          ))}
+
+          <Pressable onPress={addItem} style={styles.addItemBtn} disabled={busy}>
+            <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
+            <Text style={styles.addItemText}>Add item</Text>
+          </Pressable>
+
+          <LabeledField label="Re-estimate whole plate">
+            <TextInput
+              style={[styles.input, styles.previewInput]}
+              placeholder="e.g. 1 plate nasi putih, 2 fried chicken thighs, sambal"
+              placeholderTextColor={colors.muted}
+              value={draftName}
+              onChangeText={setDraftName}
+              multiline
+            />
+          </LabeledField>
+          <AppButton
+            label="Re-estimate all from description"
+            variant="outline"
+            onPress={reestimate}
+            loading={reestimating}
+            disabled={saving || reestimatingIdx !== null}
+            style={styles.manualSubmit}
+          />
+
+          {draft && (
+            <Text style={styles.infoText}>
+              Confidence: {Math.round(draft.confidence * 100)}%
+              {lowConfidence ? " — double-check the items above." : ""}
+            </Text>
+          )}
+
+          <AppButton
+            label="Save to log"
+            onPress={saveDraft}
+            loading={saving}
+            disabled={reestimating || reestimatingIdx !== null}
+            style={{ marginTop: spacing.md }}
+          />
+          <CancelLink onPress={() => navigation.goBack()} />
+        </ScrollView>
+      </SafeAreaView>
     );
   }
 
@@ -307,10 +581,10 @@ export function CameraScreen({ navigation }: Props) {
           </View>
         </View>
 
-        <LabeledField label="Calories">
+        <LabeledField label="Calories (optional)">
           <TextInput
             style={styles.input}
-            placeholder="Calories (kcal)"
+            placeholder="Leave blank to estimate with AI"
             placeholderTextColor={colors.muted}
             keyboardType="number-pad"
             value={manualCals}
@@ -333,7 +607,12 @@ export function CameraScreen({ navigation }: Props) {
           </View>
         )}
 
-        <AppButton label="Add entry" onPress={submitManual} style={styles.manualSubmit} />
+        <AppButton
+          label={manualCals.trim() ? "Add entry" : "Estimate & review"}
+          onPress={submitManual}
+          loading={estimatingManual}
+          style={styles.manualSubmit}
+        />
         <CancelLink onPress={() => navigation.goBack()} />
       </ScrollView>
     </SafeAreaView>
@@ -510,6 +789,65 @@ const styles = StyleSheet.create({
   },
   chipText: { color: colors.primaryDark, fontSize: 13, fontWeight: "600" },
   manualSubmit: { marginTop: spacing.sm },
+  previewHint: {
+    fontSize: 14,
+    color: colors.muted,
+    marginBottom: spacing.lg,
+  },
+  previewInput: { minHeight: 64, textAlignVertical: "top" },
+  previewKcalCard: {
+    alignItems: "center",
+    backgroundColor: colors.tint,
+    borderRadius: radius.md,
+    paddingVertical: spacing.lg,
+    marginBottom: spacing.sm,
+  },
+  previewKcalValue: {
+    fontSize: 40,
+    fontWeight: "800",
+    color: colors.primaryDark,
+  },
+  previewKcalUnit: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.primaryDark,
+    marginTop: spacing.xs,
+  },
+  itemCard: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  itemHeaderRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  itemNameInput: { flex: 1, marginBottom: 0 },
+  itemBottomRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  itemPortionInput: { flex: 1, marginBottom: 0 },
+  itemKcalWrap: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  itemKcalInput: { width: 68, marginBottom: 0, textAlign: "right" },
+  itemKcalLabel: { fontSize: 13, fontWeight: "600", color: colors.muted },
+  itemIconBtn: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addItemBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  addItemText: { color: colors.primary, fontSize: 15, fontWeight: "700" },
   breakdown: {
     width: "100%",
     backgroundColor: colors.card,
