@@ -357,7 +357,7 @@ export function CameraScreen({ navigation }: Props) {
       <View style={styles.scanningWrap}>
         <ActivityIndicator size="large" color={colors.accent} />
         <Text style={styles.scanningTitle}>Analyzing your meal…</Text>
-        <Text style={styles.scanningMono}>POST · n8n webhook</Text>
+        <Text style={styles.scanningHint}>This only takes a moment</Text>
       </View>
     );
   }
@@ -795,10 +795,10 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   scanningTitle: { fontFamily: fonts.heavy, fontSize: 16, color: colors.white, marginTop: spacing.md },
-  scanningMono: {
-    fontFamily: "ui-monospace",
-    fontSize: 11,
-    color: "rgba(255,255,255,0.5)",
+  scanningHint: {
+    fontFamily: fonts.bodySemibold,
+    fontSize: 13,
+    color: "rgba(255,255,255,0.55)",
   },
   infoTitle: {
     fontSize: 22,

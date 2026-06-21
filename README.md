@@ -3,7 +3,7 @@
 A React Native (Expo) calorie-tracking app. Users onboard with health metrics,
 get a personalized daily calorie target (Mifflin-St Jeor), and log food by
 photographing it — the photo is sent to an n8n webhook that returns the food
-name and estimated calories, which are deducted from the day's budget.
+name, estimated calories and protein, which are deducted from the day's budget.
 
 ## Stack
 - **Expo SDK 54** (React 19.1 / RN 0.81) + **TypeScript** — pinned to 54 because public Expo Go only supports up to SDK 54
@@ -41,7 +41,13 @@ src/
 ├── utils/          calorieCalculator, imageUpload, parseScan, date (+ tests)
 └── types/          generated DB types + domain models
 supabase/migrations/  SQL applied to the project (schema, RLS, RPCs)
+scripts/gen-icon.mjs  regenerates the launcher icons (`npm run gen:icon`)
 ```
+
+The brand mark (`components/BrandLogo.tsx`) and launcher icons share one identity:
+an open calorie ring around an "N". The app icons (`assets/app-logo*.png`) are
+generated from vector art by `scripts/gen-icon.mjs` — edit that script, not the
+PNGs, then run `npm run gen:icon`. Icon changes only show in a new native build.
 
 ## Food scan flow
 Camera/gallery → downscale to JPEG → **POST raw bytes with `Content-Type: image/jpeg`**
