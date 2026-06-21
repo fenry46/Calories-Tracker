@@ -17,7 +17,7 @@
     "android": {
       "package": "com.fenry46.nutripen",
       "adaptiveIcon": {
-        "backgroundColor": "#FFFFFF",
+        "backgroundColor": "#5A37C4",
         "foregroundImage": "./assets/app-logo-adaptive.png"
       },
       "predictiveBackGestureEnabled": false,
