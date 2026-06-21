@@ -65,7 +65,8 @@ protein to `0`) → logged via the `add_food_entry` RPC. Sending
 ## Database
 Three tables (`user_profiles`, `daily_logs`, `food_entries`) with RLS so each
 user can only access their own rows. Each food entry stores `calories` and
-`protein` (grams). Writes go through SECURITY DEFINER RPCs
+`protein` (grams — counted from protein-rich side dishes only; staples like rice
+contribute 0). Writes go through SECURITY DEFINER RPCs
 (`get_or_create_log`, `add_food_entry`, `delete_food_entry`) that recompute
 `total_consumed` from the entries. Daily protein is summed client-side (no
 `daily_logs` protein column). See `supabase/migrations/`.
