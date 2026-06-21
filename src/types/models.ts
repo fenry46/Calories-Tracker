@@ -12,6 +12,8 @@ export interface ScanItem {
   name: string;
   portion: string;
   estimatedCalories: number;
+  /** Estimated protein in grams for this component (0 if the model omitted it). */
+  estimatedProtein: number;
 }
 
 /**
@@ -24,6 +26,8 @@ export interface ScanResult {
   foodName: string;
   /** Total estimated calories across all items. */
   calories: number;
+  /** Total estimated protein in grams across all items (0 if unknown). */
+  protein: number;
   /** 0..1 confidence (mapped from Gemini's low/medium/high). */
   confidence: number;
   /** Per-component breakdown (may be empty if nothing was detected). */

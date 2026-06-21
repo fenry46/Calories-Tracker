@@ -18,6 +18,9 @@ export const colors = {
   primaryTintSoft: "#F7F4FE",
   success: "#34A06F", // on-track green
   successTint: "#E9F6EF",
+  protein: "#D4537A", // pink — protein accent (from NutriPen prototype)
+  proteinTint: "#FDEEF0", // soft pink surface for protein chips
+
   danger: "#E0683A", // target exceeded (warm orange-red)
   dangerTint: "#FBEADF",
   white: "#FFFFFF",

@@ -94,9 +94,13 @@ export function CameraScreen({ navigation }: Props) {
     }
   };
 
-  // Sum of the editable items — the live total shown and ultimately saved.
+  // Sum of the editable items — the live totals shown and ultimately saved.
   const itemsTotal = items.reduce(
     (sum, it) => sum + (Number(it.estimatedCalories) || 0),
+    0
+  );
+  const proteinTotal = items.reduce(
+    (sum, it) => sum + (Number(it.estimatedProtein) || 0),
     0
   );
 
@@ -139,7 +143,10 @@ export function CameraScreen({ navigation }: Props) {
     setItems((prev) => prev.filter((_, i) => i !== index));
 
   const addItem = () =>
-    setItems((prev) => [...prev, { name: "", portion: "", estimatedCalories: 0 }]);
+    setItems((prev) => [
+      ...prev,
+      { name: "", portion: "", estimatedCalories: 0, estimatedProtein: 0 },
+    ]);
 
   // Re-estimate a single item's calories from its name + portion.
   const reestimateItem = async (index: number) => {
@@ -159,7 +166,10 @@ export function CameraScreen({ navigation }: Props) {
         );
         return;
       }
-      updateItem(index, { estimatedCalories: res.calories });
+      updateItem(index, {
+        estimatedCalories: res.calories,
+        estimatedProtein: res.protein,
+      });
     } catch (err) {
       Alert.alert(
         "Re-estimate failed",
@@ -182,7 +192,7 @@ export function CameraScreen({ navigation }: Props) {
       return;
     }
     setSaving(true);
-    const { entry, error } = await addFoodEntry(name, itemsTotal);
+    const { entry, error } = await addFoodEntry(name, itemsTotal, proteinTotal);
     setSaving(false);
     if (error || !entry) {
       setErrorMsg(error ?? "Could not save the entry.");
@@ -370,6 +380,9 @@ export function CameraScreen({ navigation }: Props) {
           <View style={styles.previewKcalCard}>
             <Text style={styles.previewKcalValue}>{itemsTotal}</Text>
             <Text style={styles.previewKcalUnit}>kcal total</Text>
+            <View style={styles.previewProteinPill}>
+              <Text style={styles.previewProteinText}>{proteinTotal} g protein</Text>
+            </View>
           </View>
 
           {items.map((it, i) => (
@@ -414,6 +427,21 @@ export function CameraScreen({ navigation }: Props) {
                     }
                   />
                   <Text style={styles.itemKcalLabel}>kcal</Text>
+                </View>
+                <View style={styles.itemKcalWrap}>
+                  <TextInput
+                    style={[styles.input, styles.itemProteinInput]}
+                    placeholder="0"
+                    placeholderTextColor={colors.muted}
+                    keyboardType="number-pad"
+                    value={it.estimatedProtein ? String(it.estimatedProtein) : ""}
+                    onChangeText={(t) =>
+                      updateItem(i, {
+                        estimatedProtein: parseInt(t.replace(/[^0-9]/g, ""), 10) || 0,
+                      })
+                    }
+                  />
+                  <Text style={styles.itemProteinLabel}>g</Text>
                 </View>
                 <Pressable
                   onPress={() => reestimateItem(i)}
@@ -483,6 +511,9 @@ export function CameraScreen({ navigation }: Props) {
         <Text style={styles.successEmoji}>✅</Text>
         <Text style={styles.infoTitle}>Logged</Text>
         <Text style={styles.bigKcal}>{result.entry.calories} kcal</Text>
+        {result.entry.protein > 0 && (
+          <Text style={styles.bigProtein}>{result.entry.protein} g protein</Text>
+        )}
 
         {result.items.length > 0 && (
           <View style={styles.breakdown}>
@@ -492,9 +523,16 @@ export function CameraScreen({ navigation }: Props) {
                   {it.name}
                   {it.portion ? ` · ${it.portion}` : ""}
                 </Text>
-                <Text style={styles.breakdownKcal}>
-                  {Math.round(it.estimatedCalories)}
-                </Text>
+                <View style={styles.breakdownValues}>
+                  {it.estimatedProtein > 0 && (
+                    <Text style={styles.breakdownProtein}>
+                      {Math.round(it.estimatedProtein)}g
+                    </Text>
+                  )}
+                  <Text style={styles.breakdownKcal}>
+                    {Math.round(it.estimatedCalories)}
+                  </Text>
+                </View>
               </View>
             ))}
           </View>
@@ -782,6 +820,12 @@ const styles = StyleSheet.create({
     color: colors.primary,
     marginTop: spacing.sm,
   },
+  bigProtein: {
+    fontSize: 16,
+    fontFamily: fonts.heavy,
+    color: colors.protein,
+    marginTop: spacing.xs,
+  },
   successEmoji: { fontSize: 56 },
   errorCard: {
     width: "100%",
@@ -868,6 +912,14 @@ const styles = StyleSheet.create({
     color: colors.primaryDark,
     marginTop: spacing.xs,
   },
+  previewProteinPill: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.proteinTint,
+    borderRadius: radius.pill,
+    paddingVertical: spacing.xs + 2,
+    paddingHorizontal: spacing.md,
+  },
+  previewProteinText: { fontFamily: fonts.heavy, fontSize: 13, color: colors.protein },
   itemCard: {
     backgroundColor: colors.card,
     borderWidth: 1,
@@ -886,8 +938,10 @@ const styles = StyleSheet.create({
   },
   itemPortionInput: { flex: 1, marginBottom: 0 },
   itemKcalWrap: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
-  itemKcalInput: { width: 68, marginBottom: 0, textAlign: "right" },
+  itemKcalInput: { width: 58, marginBottom: 0, textAlign: "right" },
   itemKcalLabel: { fontSize: 13, fontWeight: "600", color: colors.muted },
+  itemProteinInput: { width: 44, marginBottom: 0, textAlign: "right" },
+  itemProteinLabel: { fontSize: 13, fontWeight: "700", color: colors.protein },
   itemIconBtn: {
     width: 36,
     height: 36,
@@ -920,6 +974,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   breakdownName: { flex: 1, color: colors.text, fontSize: 15, marginRight: spacing.md },
+  breakdownValues: { flexDirection: "row", alignItems: "baseline", gap: spacing.sm },
+  breakdownProtein: { color: colors.protein, fontSize: 14, fontWeight: "800" },
   breakdownKcal: { color: colors.muted, fontSize: 15, fontWeight: "700" },
   input: {
     width: "100%",

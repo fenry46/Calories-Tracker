@@ -49,17 +49,20 @@ to the self-hosted n8n webhook (`https://pen8n.online/webhook/track-calories`, 3
 timeout) → Gemini analyzes the image (the Gemini node has retry-on-fail enabled to
 ride out transient `503` overload responses) → an n8n
 `Format Response` Code node unwraps Gemini's envelope and the webhook returns a
-clean contract `{ items, totalCalories, confidence, notes }` → `src/utils/parseScan.ts`
-normalizes it into `{ foodName, calories, confidence, items, notes }` (kept as a
-defensive layer that also still tolerates the old raw shape) → logged via the
-`add_food_entry` RPC. Sending `application/octet-stream` will fail — Gemini rejects
-that MIME type.
+clean contract `{ items, totalCalories, totalProtein, confidence, notes }` (each
+item carries `estimatedCalories` + `estimatedProtein`) → `src/utils/parseScan.ts`
+normalizes it into `{ foodName, calories, protein, confidence, items, notes }`
+(kept as a defensive layer that also still tolerates the old raw shape, defaulting
+protein to `0`) → logged via the `add_food_entry` RPC. Sending
+`application/octet-stream` will fail — Gemini rejects that MIME type.
 
 ## Database
 Three tables (`user_profiles`, `daily_logs`, `food_entries`) with RLS so each
-user can only access their own rows. Writes go through SECURITY DEFINER RPCs
-(`get_or_create_log`, `add_food_entry`, `delete_food_entry`) that update
-`total_consumed` atomically. See `supabase/migrations/`.
+user can only access their own rows. Each food entry stores `calories` and
+`protein` (grams). Writes go through SECURITY DEFINER RPCs
+(`get_or_create_log`, `add_food_entry`, `delete_food_entry`) that recompute
+`total_consumed` from the entries. Daily protein is summed client-side (no
+`daily_logs` protein column). See `supabase/migrations/`.
 
 ## Tests
 ```bash

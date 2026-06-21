@@ -32,7 +32,15 @@ export function LogItem({ entry, onDelete }: Props) {
         <Text style={styles.name} numberOfLines={1}>
           {entry.food_name}
         </Text>
-        <Text style={styles.time}>{time}</Text>
+        <View style={styles.metaRow}>
+          <Text style={styles.time}>{time}</Text>
+          {entry.protein > 0 && (
+            <>
+              <View style={styles.metaDot} />
+              <Text style={styles.protein}>{entry.protein}g protein</Text>
+            </>
+          )}
+        </View>
       </View>
       <Text style={styles.kcal}>{entry.calories}</Text>
       {onDelete && (
@@ -65,7 +73,10 @@ const styles = StyleSheet.create({
   thumb: { width: 46, height: 46, borderRadius: 13 },
   info: { flex: 1 },
   name: { fontFamily: fonts.heavy, fontSize: 15, color: colors.text },
-  time: { fontFamily: fonts.bold, fontSize: 12, color: colors.faint, marginTop: 2 },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: 2 },
+  time: { fontFamily: fonts.bold, fontSize: 12, color: colors.faint },
+  metaDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: colors.faint },
+  protein: { fontFamily: fonts.heavy, fontSize: 12, color: colors.protein },
   kcal: { fontFamily: fonts.black, fontSize: 16, color: colors.text },
   delete: {
     width: 28,

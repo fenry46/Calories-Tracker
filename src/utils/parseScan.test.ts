@@ -90,4 +90,41 @@ describe("parseScanResult", () => {
     expect(res.confidence).toBe(0.8);
     expect(res.foodName).toBe("Soto");
   });
+
+  it("reads protein from the clean contract (totalProtein + per-item)", () => {
+    const res = parseScanResult({
+      items: [
+        { name: "Nasi putih", portion: "1 centong", estimatedCalories: 234, estimatedProtein: 3.6 },
+        { name: "Ayam goreng", portion: "1 potong", estimatedCalories: 220, estimatedProtein: 20 },
+      ],
+      totalCalories: 454,
+      totalProtein: 23.6,
+      confidence: "medium",
+    });
+    expect(res.protein).toBe(24); // rounded from 23.6
+    expect(res.items[0].estimatedProtein).toBe(3.6);
+    expect(res.items[1].estimatedProtein).toBe(20);
+  });
+
+  it("sums item protein when totalProtein is missing", () => {
+    const res = parseScanResult({
+      items: [
+        { name: "A", portion: "1", estimatedCalories: 120, estimatedProtein: 5 },
+        { name: "B", portion: "1", estimatedCalories: 80, estimatedProtein: 7 },
+      ],
+      confidence: "medium",
+    });
+    expect(res.protein).toBe(12);
+  });
+
+  it("defaults protein to 0 for the old contract without protein fields", () => {
+    const inner = JSON.stringify({
+      items: [{ name: "Tempe", portion: "1", estimatedCalories: 100 }],
+      totalCalories: 100,
+      confidence: "high",
+    });
+    const res = parseScanResult([{ content: { parts: [{ text: inner }] } }]);
+    expect(res.protein).toBe(0);
+    expect(res.items[0].estimatedProtein).toBe(0);
+  });
 });

@@ -55,6 +55,7 @@ export type Database = {
           daily_log_id: string
           food_name: string
           id: string
+          protein: number
           scanned_at: string
         }
         Insert: {
@@ -62,6 +63,7 @@ export type Database = {
           daily_log_id: string
           food_name: string
           id?: string
+          protein?: number
           scanned_at?: string
         }
         Update: {
@@ -69,6 +71,7 @@ export type Database = {
           daily_log_id?: string
           food_name?: string
           id?: string
+          protein?: number
           scanned_at?: string
         }
         Relationships: [
@@ -133,6 +136,7 @@ export type Database = {
           p_calories: number
           p_date: string
           p_food_name: string
+          p_protein?: number
           p_target: number
         }
         Returns: {
@@ -140,6 +144,7 @@ export type Database = {
           daily_log_id: string
           food_name: string
           id: string
+          protein: number
           scanned_at: string
         }
         SetofOptions: {

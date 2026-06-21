@@ -37,7 +37,8 @@ interface CalorieState {
   refresh: () => Promise<void>;
   addFoodEntry: (
     foodName: string,
-    calories: number
+    calories: number,
+    protein?: number
   ) => Promise<{ entry?: FoodEntry; error?: string }>;
   removeFoodEntry: (entryId: string) => Promise<{ error?: string }>;
   reset: () => void;
@@ -182,7 +183,7 @@ export const useCalorieStore = create<CalorieState>((set, get) => ({
 
   // Scans + manual entries always land on *today* (PRD §3.3), then we jump the
   // view to today so the user sees the new entry and updated remaining total.
-  addFoodEntry: async (foodName, calories) => {
+  addFoodEntry: async (foodName, calories, protein = 0) => {
     const { profile } = get();
     if (!profile) return { error: "No profile" };
     const today = localDateISO();
@@ -192,6 +193,7 @@ export const useCalorieStore = create<CalorieState>((set, get) => ({
       p_calories: Math.round(calories),
       p_date: today,
       p_target: profile.daily_calorie_target,
+      p_protein: Math.round(protein),
     });
 
     if (error) return { error: error.message };

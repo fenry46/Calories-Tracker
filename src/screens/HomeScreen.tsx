@@ -43,9 +43,8 @@ export function HomeScreen({ navigation }: Props) {
 
   const target = log?.total_target ?? profile?.daily_calorie_target ?? 0;
   const consumed = log?.total_consumed ?? 0;
-  const remaining = target - consumed;
   const atToday = isToday(selectedDate);
-  const pct = target > 0 ? Math.round((consumed / target) * 100) : 0;
+  const protein = entries.reduce((sum, e) => sum + (e.protein ?? 0), 0);
   const showInitialLoading = isLoading && !log;
 
   const onDelete = useCallback(
@@ -134,11 +133,7 @@ export function HomeScreen({ navigation }: Props) {
               <View style={styles.statsRow}>
                 <Stat value={consumed} label="Eaten" color={colors.success} />
                 <Stat value={target} label="Target" color={colors.primary} />
-                <Stat
-                  value={`${pct}%`}
-                  label="of budget"
-                  color={remaining < 0 ? colors.danger : colors.text}
-                />
+                <Stat value={`${protein}g`} label="Protein" color={colors.protein} />
               </View>
             </View>
 

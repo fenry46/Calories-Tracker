@@ -4,6 +4,7 @@ import type { ScanItem, ScanResult } from "../types/models";
 interface GeminiPayload {
   items?: ScanItem[];
   totalCalories?: number;
+  totalProtein?: number;
   confidence?: "low" | "medium" | "high" | number;
   notes?: string;
 }
@@ -39,11 +40,26 @@ export function parseScanResult(data: unknown): ScanResult {
     // leave payload empty -> treated as "nothing detected" by the caller
   }
 
-  const items = Array.isArray(payload.items) ? payload.items : [];
+  // Normalize each item so estimatedCalories/estimatedProtein are always numbers,
+  // even when the model (or the old contract) omitted protein.
+  const items: ScanItem[] = (Array.isArray(payload.items) ? payload.items : []).map(
+    (it) => ({
+      name: it?.name ?? "",
+      portion: it?.portion ?? "",
+      estimatedCalories: Number(it?.estimatedCalories) || 0,
+      estimatedProtein: Number(it?.estimatedProtein) || 0,
+    })
+  );
+
   const calories =
     typeof payload.totalCalories === "number"
       ? payload.totalCalories
-      : items.reduce((sum, it) => sum + (Number(it.estimatedCalories) || 0), 0);
+      : items.reduce((sum, it) => sum + it.estimatedCalories, 0);
+
+  const protein =
+    typeof payload.totalProtein === "number"
+      ? payload.totalProtein
+      : items.reduce((sum, it) => sum + it.estimatedProtein, 0);
 
   const confidence =
     typeof payload.confidence === "number"
@@ -56,6 +72,7 @@ export function parseScanResult(data: unknown): ScanResult {
   return {
     foodName,
     calories: Math.round(calories),
+    protein: Math.round(protein),
     confidence,
     items,
     notes: payload.notes ?? "",
