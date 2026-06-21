@@ -20,7 +20,7 @@ import { useCalorieStore } from "../store/useCalorieStore";
 import { uploadFoodImage, WebhookTimeoutError } from "../utils/imageUpload";
 import { estimateFromText } from "../utils/estimateText";
 import type { FoodEntry, ScanItem, ScanResult } from "../types/models";
-import { colors, radius, spacing } from "../theme";
+import { colors, fonts, radius, spacing } from "../theme";
 import type { RootStackScreenProps } from "../navigation/types";
 
 type Props = RootStackScreenProps<"Camera">;
@@ -297,34 +297,46 @@ export function CameraScreen({ navigation }: Props) {
       <View style={styles.flex}>
         <CameraView ref={cameraRef} style={styles.flex} facing="back" />
 
-        {/* Top-left close button (standard full-screen camera dismiss) */}
+        {/* Top bar: close + title */}
         <SafeAreaView style={styles.topOverlay} edges={["top"]}>
-          <Pressable
-            style={styles.closeBtn}
-            onPress={() => navigation.goBack()}
-            hitSlop={10}
-            accessibilityLabel="Close"
-          >
-            <Ionicons name="close" size={26} color={colors.white} />
-          </Pressable>
+          <View style={styles.topBar}>
+            <Pressable
+              style={styles.closeBtn}
+              onPress={() => navigation.goBack()}
+              hitSlop={10}
+              accessibilityLabel="Close"
+            >
+              <Ionicons name="close" size={22} color={colors.white} />
+            </Pressable>
+            <Text style={styles.scanTitle}>Scan your meal</Text>
+            <View style={styles.closeBtn} />
+          </View>
         </SafeAreaView>
 
+        {/* Framing brackets */}
+        <View style={styles.bracketsWrap} pointerEvents="none">
+          <View style={[styles.bracket, styles.bracketTL]} />
+          <View style={[styles.bracket, styles.bracketTR]} />
+          <View style={[styles.bracket, styles.bracketBL]} />
+          <View style={[styles.bracket, styles.bracketBR]} />
+        </View>
+
         <SafeAreaView style={styles.cameraOverlay} edges={["bottom"]}>
+          <Text style={styles.frameHint}>Center your plate in the frame</Text>
           <View style={styles.cameraControls}>
-            <Pressable style={styles.smallBtn} onPress={pickFromGallery}>
-              <Text style={styles.smallBtnText}>Gallery</Text>
+            <Pressable style={styles.sideBtn} onPress={pickFromGallery}>
+              <Ionicons name="images-outline" size={22} color={colors.white} />
             </Pressable>
             <Pressable
               style={styles.shutter}
               onPress={takePhoto}
               accessibilityLabel="Take photo"
-            >
-              <View style={styles.shutterInner} />
-            </Pressable>
-            <Pressable style={styles.smallBtn} onPress={() => setPhase("manual")}>
-              <Text style={styles.smallBtnText}>Manual</Text>
-            </Pressable>
+            />
+            <View style={styles.sideBtn} />
           </View>
+          <Pressable style={styles.manualLink} onPress={() => setPhase("manual")}>
+            <Text style={styles.manualLinkText}>Enter manually instead</Text>
+          </Pressable>
         </SafeAreaView>
       </View>
     );
@@ -332,11 +344,11 @@ export function CameraScreen({ navigation }: Props) {
 
   if (phase === "processing") {
     return (
-      <Centered>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.infoTitle}>Scanning your food…</Text>
-        <Text style={styles.infoText}>Identifying the item and estimating calories.</Text>
-      </Centered>
+      <View style={styles.scanningWrap}>
+        <ActivityIndicator size="large" color={colors.accent} />
+        <Text style={styles.scanningTitle}>Analyzing your meal…</Text>
+        <Text style={styles.scanningMono}>POST · n8n webhook</Text>
+      </View>
     );
   }
 
@@ -662,6 +674,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+    paddingBottom: spacing.lg,
   },
   topOverlay: {
     position: "absolute",
@@ -671,45 +684,87 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
   },
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  scanTitle: { fontFamily: fonts.heavy, fontSize: 15, color: colors.white },
   closeBtn: {
-    width: 44,
-    height: 44,
+    width: 38,
+    height: 38,
     borderRadius: radius.pill,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "rgba(255,255,255,0.18)",
     alignItems: "center",
     justifyContent: "center",
+  },
+  bracketsWrap: {
+    position: "absolute",
+    top: "26%",
+    bottom: "30%",
+    left: 40,
+    right: 40,
+  },
+  bracket: {
+    position: "absolute",
+    width: 36,
+    height: 36,
+    borderColor: "rgba(255,255,255,0.7)",
+  },
+  bracketTL: { top: 0, left: 0, borderTopWidth: 3, borderLeftWidth: 3, borderTopLeftRadius: 10 },
+  bracketTR: { top: 0, right: 0, borderTopWidth: 3, borderRightWidth: 3, borderTopRightRadius: 10 },
+  bracketBL: { bottom: 0, left: 0, borderBottomWidth: 3, borderLeftWidth: 3, borderBottomLeftRadius: 10 },
+  bracketBR: { bottom: 0, right: 0, borderBottomWidth: 3, borderRightWidth: 3, borderBottomRightRadius: 10 },
+  frameHint: {
+    textAlign: "center",
+    color: "rgba(255,255,255,0.7)",
+    fontFamily: fonts.bodySemibold,
+    fontSize: 14,
+    marginBottom: spacing.md,
   },
   cameraControls: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-around",
-    paddingVertical: spacing.lg,
+    paddingVertical: spacing.sm,
   },
-  shutter: {
-    width: 76,
-    height: 76,
-    borderRadius: radius.pill,
-    borderWidth: 5,
-    borderColor: colors.white,
+  sideBtn: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.12)",
     alignItems: "center",
     justifyContent: "center",
   },
-  shutterInner: {
-    width: 58,
-    height: 58,
+  shutter: {
+    width: 80,
+    height: 80,
     borderRadius: radius.pill,
-    backgroundColor: colors.white,
+    borderWidth: 5,
+    borderColor: "rgba(255,255,255,0.85)",
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  smallBtn: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    borderRadius: radius.pill,
+  manualLink: { alignSelf: "center", marginTop: spacing.md, padding: spacing.sm },
+  manualLinkText: { color: "rgba(255,255,255,0.85)", fontFamily: fonts.heavy, fontSize: 14 },
+  // scanning state
+  scanningWrap: {
+    flex: 1,
+    backgroundColor: colors.dark,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.md,
   },
-  smallBtnText: { color: colors.white, fontWeight: "700" },
+  scanningTitle: { fontFamily: fonts.heavy, fontSize: 16, color: colors.white, marginTop: spacing.md },
+  scanningMono: {
+    fontFamily: "ui-monospace",
+    fontSize: 11,
+    color: "rgba(255,255,255,0.5)",
+  },
   infoTitle: {
     fontSize: 22,
-    fontWeight: "800",
+    fontFamily: fonts.heavy,
     color: colors.text,
     textAlign: "center",
     marginTop: spacing.md,
@@ -723,7 +778,7 @@ const styles = StyleSheet.create({
   },
   bigKcal: {
     fontSize: 44,
-    fontWeight: "800",
+    fontFamily: fonts.black,
     color: colors.primary,
     marginTop: spacing.sm,
   },
@@ -757,7 +812,7 @@ const styles = StyleSheet.create({
   manualContent: { padding: spacing.lg, paddingBottom: spacing.xl * 2 },
   manualTitle: {
     fontSize: 24,
-    fontWeight: "800",
+    fontFamily: fonts.black,
     color: colors.text,
     marginBottom: spacing.lg,
   },
@@ -804,8 +859,8 @@ const styles = StyleSheet.create({
   },
   previewKcalValue: {
     fontSize: 40,
-    fontWeight: "800",
-    color: colors.primaryDark,
+    fontFamily: fonts.black,
+    color: colors.primary,
   },
   previewKcalUnit: {
     fontSize: 14,

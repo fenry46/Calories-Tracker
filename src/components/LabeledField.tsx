@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 
-import { colors, spacing } from "../theme";
+import { colors, fonts, spacing } from "../theme";
 
 interface Props {
   label: string;
@@ -31,5 +31,5 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: spacing.sm,
   },
-  label: { fontSize: 14, fontWeight: "700", color: colors.text },
+  label: { fontSize: 14, fontFamily: fonts.heavy, color: colors.text },
 });

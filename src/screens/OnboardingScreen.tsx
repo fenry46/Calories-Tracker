@@ -1,98 +1,83 @@
-import React, { useMemo, useState } from "react";
-import { View, Text, StyleSheet, Alert, TextInput } from "react-native";
+import React, { useState } from "react";
+import { View, Text, StyleSheet, Alert, TextInput, ScrollView, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 
 import { MetricInput } from "../components/MetricInput";
 import { Segmented } from "../components/Segmented";
-import { BrandLogo } from "../components/BrandLogo";
-import { InfoBox } from "../components/InfoBox";
 import { AppButton } from "../components/AppButton";
 import { useCalorieStore } from "../store/useCalorieStore";
 import type { BiologicalSex, WeightGoal } from "../types/models";
 import {
-  calcDailyCalorieTarget,
+  calcBMR,
+  calcTDEE,
+  calcTarget,
+  GOAL_ADJUSTMENT,
   kgToLbs,
   lbsToKg,
   cmToIn,
   inToCm,
 } from "../utils/calorieCalculator";
-import { colors, radius, spacing } from "../theme";
+import { colors, fonts, radius, spacing } from "../theme";
+
+type Step = "welcome" | "metrics" | "goal" | "target";
 
 const GOAL_LABELS: Record<WeightGoal, string> = {
   LOSE: "Lose weight",
   MAINTAIN: "Maintain weight",
   GAIN: "Gain weight",
 };
-
 const GOAL_DESCRIPTIONS: Record<WeightGoal, string> = {
-  LOSE: "Create a calorie deficit",
-  MAINTAIN: "Keep a balanced intake",
-  GAIN: "Increase calories and build",
+  LOSE: "500 kcal below maintenance",
+  MAINTAIN: "Stay at maintenance calories",
+  GAIN: "400 kcal above maintenance",
 };
+const GOAL_GLYPHS: Record<WeightGoal, string> = { LOSE: "↓", MAINTAIN: "=", GAIN: "↑" };
 
 export function OnboardingScreen() {
   const createProfile = useCalorieStore((s) => s.createProfile);
 
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState<Step>("welcome");
   const [submitting, setSubmitting] = useState(false);
 
   const [name, setName] = useState("");
-  const [sex, setSex] = useState<BiologicalSex | null>(null);
-  const [age, setAge] = useState(25);
+  const [sex, setSex] = useState<BiologicalSex>("FEMALE");
+  const [age, setAge] = useState(29);
 
-  const [weightUnit, setWeightUnit] = useState<"kg" | "lbs">("kg");
-  const [weight, setWeight] = useState(70); // in current weightUnit
+  const [units, setUnits] = useState<"metric" | "imperial">("metric");
+  const [weight, setWeight] = useState(72); // in current weight unit
+  const [height, setHeight] = useState(172); // in current height unit
 
-  const [heightUnit, setHeightUnit] = useState<"cm" | "in">("cm");
-  const [height, setHeight] = useState(170); // in current heightUnit
+  const weightUnit = units === "metric" ? "kg" : "lbs";
+  const heightUnit = units === "metric" ? "cm" : "in";
+  const weightKg = units === "metric" ? weight : lbsToKg(weight);
+  const heightCm = units === "metric" ? height : inToCm(height);
 
-  const [goal, setGoal] = useState<WeightGoal | null>(null);
+  const [goal, setGoal] = useState<WeightGoal>("LOSE");
 
-  const weightKg = weightUnit === "kg" ? weight : lbsToKg(weight);
-  const heightCm = heightUnit === "cm" ? height : inToCm(height);
-
-  const previewTarget = useMemo(() => {
-    if (!sex || !goal) return null;
-    return calcDailyCalorieTarget(
-      { biologicalSex: sex, age, weightKg, heightCm },
-      goal
-    );
-  }, [sex, age, weightKg, heightCm, goal]);
-
-  const toggleWeightUnit = () => {
-    if (weightUnit === "kg") {
-      setWeight(Number(kgToLbs(weight).toFixed(1)));
-      setWeightUnit("lbs");
+  const toggleUnits = () => {
+    if (units === "metric") {
+      setWeight(Number(kgToLbs(weight).toFixed(0)));
+      setHeight(Number(cmToIn(height).toFixed(0)));
+      setUnits("imperial");
     } else {
-      setWeight(Number(lbsToKg(weight).toFixed(1)));
-      setWeightUnit("kg");
+      setWeight(Number(lbsToKg(weight).toFixed(0)));
+      setHeight(Number(inToCm(height).toFixed(0)));
+      setUnits("metric");
     }
   };
 
-  const toggleHeightUnit = () => {
-    if (heightUnit === "cm") {
-      setHeight(Number(cmToIn(height).toFixed(1)));
-      setHeightUnit("in");
-    } else {
-      setHeight(Number(inToCm(height).toFixed(1)));
-      setHeightUnit("cm");
-    }
-  };
+  const metrics = { biologicalSex: sex, age, weightKg, heightCm };
+  const bmr = Math.round(calcBMR(metrics));
+  const tdee = Math.round(calcTDEE(bmr));
+  const target = calcTarget(calcTDEE(calcBMR(metrics)), goal);
 
-  const steps = ["Name", "Sex", "Age", "Weight", "Height", "Goal"];
-  const canAdvance =
-    (step === 0 && name.trim().length > 0) ||
-    (step === 1 && !!sex) ||
-    (step === 2 && age > 0) ||
-    (step === 3 && weight > 0) ||
-    (step === 4 && height > 0) ||
-    (step === 5 && !!goal);
+  const fmt = (n: number) => Math.round(n).toLocaleString("en-US");
 
   const submit = async () => {
-    if (!sex || !goal) return;
     setSubmitting(true);
     const { error } = await createProfile({
-      name: name.trim(),
+      name: name.trim() || "Friend",
       biologicalSex: sex,
       age,
       weightKg,
@@ -101,206 +86,329 @@ export function OnboardingScreen() {
     });
     setSubmitting(false);
     if (error) Alert.alert("Could not save profile", error);
-    // On success the store sets `profile`, which flips the navigator to Dashboard.
+    // On success the store sets `profile`, which flips the navigator to Home.
   };
 
-  return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.container}>
-        {/* brand + step count */}
-        <View style={styles.headerRow}>
-          <BrandLogo size={20} />
-          <Text style={styles.stepCount}>
-            {step + 1} of {steps.length}
-          </Text>
-        </View>
-
-        {/* progress dots */}
-        <View style={styles.progress}>
-          {steps.map((_, i) => (
-            <View
-              key={i}
-              style={[styles.dot, i <= step && styles.dotActive]}
-            />
-          ))}
-        </View>
-
-        <View style={styles.body}>
-          {step === 0 && (
-            <View>
-              <Text style={styles.segTitle}>What's your name?</Text>
-              <Text style={styles.segCaption}>So we can personalize your dashboard.</Text>
-              <TextInput
-                style={styles.nameInput}
-                placeholder="Your name"
-                placeholderTextColor={colors.muted}
-                value={name}
-                onChangeText={setName}
-                autoCapitalize="words"
-                autoFocus
-                returnKeyType="next"
-                onSubmitEditing={() => canAdvance && setStep(1)}
-              />
+  // ---------- WELCOME ----------
+  if (step === "welcome") {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.welcomeWrap}>
+          <View style={styles.heroCards}>
+            <View style={[styles.heroCard, styles.heroCardLeft]} />
+            <View style={[styles.heroCard, styles.heroCardMid]}>
+              <View style={styles.heroPill}>
+                <View style={styles.heroDot} />
+                <Text style={styles.heroPillText}>350 kcal</Text>
+              </View>
             </View>
-          )}
+            <View style={[styles.heroCard, styles.heroCardRight]} />
+          </View>
 
-          {step === 1 && (
+          <View style={styles.welcomeText}>
+            <Text style={styles.welcomeTitle}>Snap a photo.{"\n"}Know your calories.</Text>
+            <Text style={styles.welcomeSub}>
+              Set a personal daily budget, then log meals in one tap with the AI food scanner.
+            </Text>
+          </View>
+
+          <AppButton label="Get started" onPress={() => setStep("metrics")} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ---------- METRICS ----------
+  if (step === "metrics") {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.headerArea}>
+          <Header onBack={() => setStep("welcome")} progress={1} />
+          <Text style={styles.h2}>Tell us about you</Text>
+          <Text style={styles.lead}>We use this to estimate your daily calorie budget.</Text>
+        </View>
+
+        <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Your name</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. Maya"
+              placeholderTextColor={colors.faint}
+              value={name}
+              onChangeText={setName}
+              autoCapitalize="words"
+            />
+          </View>
+
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Biological sex</Text>
             <Segmented<BiologicalSex>
-              title="Biological sex"
-              caption="Used for an accurate BMR calculation."
+              horizontal
               value={sex}
               onChange={setSex}
               options={[
-                { value: "MALE", label: "Male" },
                 { value: "FEMALE", label: "Female" },
+                { value: "MALE", label: "Male" },
               ]}
             />
-          )}
+          </View>
 
-          {step === 2 && (
-            <MetricInput
-              label="Age"
-              value={age}
-              onChange={setAge}
-              min={14}
-              max={100}
-              step={1}
-            />
-          )}
+          <MetricInput label="Age" unit="years" value={age} onChange={setAge} min={13} max={99} />
+          <MetricInput
+            label="Weight"
+            unit={weightUnit}
+            value={weight}
+            onChange={setWeight}
+            min={1}
+          />
+          <MetricInput
+            label="Height"
+            unit={heightUnit}
+            value={height}
+            onChange={setHeight}
+            min={1}
+          />
 
-          {step === 3 && (
-            <MetricInput
-              label="Weight"
-              value={weight}
-              onChange={setWeight}
-              min={1}
-              step={weightUnit === "kg" ? 0.5 : 1}
-              precision={1}
-              unit={weightUnit}
-              onToggleUnit={toggleWeightUnit}
-            />
-          )}
+          <Pressable onPress={toggleUnits} hitSlop={6} style={styles.unitToggle}>
+            <Text style={styles.unitToggleText}>
+              Switch to {units === "metric" ? "lb / in" : "kg / cm"}
+            </Text>
+          </Pressable>
+        </ScrollView>
 
-          {step === 4 && (
-            <View>
-              <MetricInput
-                label="Height"
-                value={height}
-                onChange={setHeight}
-                min={1}
-                step={heightUnit === "cm" ? 1 : 0.5}
-                precision={heightUnit === "cm" ? 0 : 1}
-                unit={heightUnit}
-                onToggleUnit={toggleHeightUnit}
-              />
-              <View style={styles.infoWrap}>
-                <InfoBox>
-                  We use your height, weight and age to estimate your basal
-                  metabolic rate and set an accurate daily target.
-                </InfoBox>
-              </View>
-            </View>
-          )}
+        <View style={styles.footer}>
+          <AppButton label="Continue" onPress={() => setStep("goal")} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
-          {step === 5 && (
-            <View>
-              <Segmented<WeightGoal>
-                title="What's your main goal?"
-                caption="You can change this later in Settings."
-                value={goal}
-                onChange={setGoal}
-                options={(Object.keys(GOAL_LABELS) as WeightGoal[]).map((g) => ({
-                  value: g,
-                  label: GOAL_LABELS[g],
-                  description: GOAL_DESCRIPTIONS[g],
-                }))}
-              />
-              {previewTarget != null && (
-                <View style={styles.preview}>
-                  <Text style={styles.previewLabel}>Your daily target</Text>
-                  <Text style={styles.previewValue}>{previewTarget} kcal</Text>
-                </View>
-              )}
-            </View>
-          )}
+  // ---------- GOAL ----------
+  if (step === "goal") {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.headerArea}>
+          <Header onBack={() => setStep("metrics")} progress={2} />
+          <Text style={styles.h2}>What's your goal?</Text>
+          <Text style={styles.lead}>This adjusts your target up or down from maintenance.</Text>
         </View>
 
-        <View style={styles.nav}>
-          {step > 0 && (
-            <AppButton
-              label="Back"
-              variant="secondary"
-              onPress={() => setStep(step - 1)}
-              style={styles.navBtn}
-            />
-          )}
-          {step < steps.length - 1 ? (
-            <AppButton
-              label="Next"
-              onPress={() => canAdvance && setStep(step + 1)}
-              disabled={!canAdvance}
-              style={styles.navBtn}
-            />
-          ) : (
-            <AppButton
-              label="Finish"
-              onPress={submit}
-              loading={submitting}
-              disabled={!canAdvance}
-              style={styles.navBtn}
-            />
-          )}
+        <View style={styles.body}>
+          <Segmented<WeightGoal>
+            value={goal}
+            onChange={setGoal}
+            options={(Object.keys(GOAL_LABELS) as WeightGoal[]).map((g) => ({
+              value: g,
+              label: GOAL_LABELS[g],
+              description: GOAL_DESCRIPTIONS[g],
+              glyph: GOAL_GLYPHS[g],
+            }))}
+          />
         </View>
+
+        <View style={styles.footer}>
+          <AppButton label="Calculate my target" onPress={() => setStep("target")} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ---------- TARGET ----------
+  const goalWord = goal === "LOSE" ? "Lose" : goal === "GAIN" ? "Gain" : "Maintain";
+  const adj = GOAL_ADJUSTMENT[goal];
+  const adjStr = adj > 0 ? `+${adj}` : adj < 0 ? `−${Math.abs(adj)}` : "±0";
+  return (
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.targetWrap}>
+        <View style={styles.targetCenter}>
+          <Text style={styles.targetEyebrow}>YOUR DAILY TARGET</Text>
+          <View style={styles.targetNumRow}>
+            <Text style={styles.targetNum}>{fmt(target)}</Text>
+            <Text style={styles.targetUnit}>kcal</Text>
+          </View>
+          <Text style={styles.targetNote}>
+            Calculated from your metrics with the Mifflin-St Jeor formula.
+          </Text>
+
+          <View style={styles.breakdown}>
+            <BreakdownRow label="BMR (Mifflin-St Jeor)" value={`${fmt(bmr)} kcal`} />
+            <BreakdownRow label="TDEE (× 1.2 sedentary)" value={`${fmt(tdee)} kcal`} />
+            <BreakdownRow
+              label={`${goalWord} adjustment`}
+              value={`${adjStr} kcal`}
+              accent
+              last
+            />
+          </View>
+        </View>
+
+        <AppButton label="Start tracking" onPress={submit} loading={submitting} />
       </View>
     </SafeAreaView>
   );
 }
 
+function Header({ onBack, progress }: { onBack: () => void; progress: number }) {
+  return (
+    <View style={styles.headerRow}>
+      <Pressable onPress={onBack} style={styles.backBtn} accessibilityLabel="Back">
+        <Ionicons name="arrow-back" size={20} color={colors.text} />
+      </Pressable>
+      <View style={styles.progress}>
+        {[1, 2, 3].map((i) => (
+          <View key={i} style={[styles.dot, i <= progress && styles.dotActive]} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function BreakdownRow({
+  label,
+  value,
+  accent,
+  last,
+}: {
+  label: string;
+  value: string;
+  accent?: boolean;
+  last?: boolean;
+}) {
+  return (
+    <View style={[styles.brRow, !last && styles.brDivider]}>
+      <Text style={styles.brLabel}>{label}</Text>
+      <Text style={[styles.brValue, accent && styles.brValueAccent]}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  container: { flex: 1, padding: spacing.lg },
-  headerRow: {
+
+  // welcome
+  welcomeWrap: { flex: 1, padding: spacing.lg, paddingBottom: spacing.xl, justifyContent: "space-between" },
+  heroCards: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.md, marginTop: spacing.xl * 2 },
+  heroCard: { width: 100, height: 128, borderRadius: 22 },
+  heroCardLeft: { backgroundColor: "#EFE7D6", transform: [{ rotate: "-7deg" }] },
+  heroCardMid: {
+    width: 110,
+    height: 142,
+    backgroundColor: "#E3ECD9",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 14,
+  },
+  heroCardRight: { backgroundColor: "#E2D8FA", transform: [{ rotate: "7deg" }] },
+  heroPill: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: spacing.lg,
-  },
-  stepCount: { color: colors.muted, fontSize: 14, fontWeight: "600" },
-  progress: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  dot: {
-    flex: 1,
-    height: 6,
+    gap: 6,
+    backgroundColor: colors.white,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
     borderRadius: radius.pill,
-    backgroundColor: colors.track,
   },
+  heroDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.success },
+  heroPillText: { fontFamily: fonts.heavy, fontSize: 12, color: colors.text },
+  welcomeText: { alignItems: "center", paddingHorizontal: spacing.sm },
+  welcomeTitle: {
+    fontFamily: fonts.black,
+    fontSize: 32,
+    lineHeight: 36,
+    color: colors.text,
+    textAlign: "center",
+    letterSpacing: -0.8,
+  },
+  welcomeSub: {
+    fontFamily: fonts.bodySemibold,
+    fontSize: 16,
+    lineHeight: 24,
+    color: colors.muted,
+    textAlign: "center",
+    marginTop: spacing.md,
+  },
+
+  // shared header
+  headerArea: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, gap: spacing.md },
+  headerRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: colors.stepBg,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  progress: { flex: 1, flexDirection: "row", gap: 6 },
+  dot: { flex: 1, height: 6, borderRadius: 3, backgroundColor: colors.border },
   dotActive: { backgroundColor: colors.primary },
-  body: { flex: 1, justifyContent: "center" },
-  nav: { flexDirection: "row", gap: spacing.md },
-  navBtn: { flex: 1 },
-  infoWrap: { marginTop: spacing.xl },
-  segTitle: { fontSize: 22, fontWeight: "800", color: colors.text },
-  segCaption: { color: colors.muted, marginTop: spacing.xs, marginBottom: spacing.lg },
-  nameInput: {
+  h2: { fontFamily: fonts.black, fontSize: 26, color: colors.text, letterSpacing: -0.5 },
+  lead: { fontFamily: fonts.bodySemibold, fontSize: 15, color: colors.muted, marginTop: -spacing.sm },
+
+  body: { padding: spacing.lg, gap: spacing.md + 2 },
+  fieldGroup: { gap: spacing.sm },
+  fieldLabel: {
+    fontFamily: fonts.heavy,
+    fontSize: 13,
+    color: colors.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  input: {
     backgroundColor: colors.card,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
-    fontSize: 18,
+    fontFamily: fonts.bodySemibold,
+    fontSize: 16,
     color: colors.text,
   },
-  preview: {
-    marginTop: spacing.xl,
-    padding: spacing.lg,
-    borderRadius: radius.lg,
-    backgroundColor: colors.tint,
-    alignItems: "center",
+  unitToggle: { alignSelf: "flex-start", paddingVertical: spacing.xs },
+  unitToggleText: { fontFamily: fonts.heavy, fontSize: 14, color: colors.primary },
+  footer: { padding: spacing.lg },
+
+  // target
+  targetWrap: { flex: 1, padding: spacing.lg, justifyContent: "space-between" },
+  targetCenter: { flex: 1, alignItems: "center", justifyContent: "center" },
+  targetEyebrow: {
+    fontFamily: fonts.heavy,
+    fontSize: 14,
+    color: colors.muted,
+    letterSpacing: 1,
+    marginBottom: spacing.md,
   },
-  previewLabel: { color: colors.muted, fontSize: 14 },
-  previewValue: { color: colors.primaryDark, fontSize: 32, fontWeight: "800", marginTop: 4 },
+  targetNumRow: { flexDirection: "row", alignItems: "baseline", gap: spacing.sm },
+  targetNum: { fontFamily: fonts.black, fontSize: 76, lineHeight: 80, color: colors.primary, letterSpacing: -2 },
+  targetUnit: { fontFamily: fonts.heavy, fontSize: 22, color: colors.muted },
+  targetNote: {
+    fontFamily: fonts.bodySemibold,
+    fontSize: 15,
+    color: colors.muted,
+    textAlign: "center",
+    maxWidth: 240,
+    lineHeight: 22,
+    marginTop: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  breakdown: {
+    width: "100%",
+    backgroundColor: colors.card,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.lg,
+  },
+  brRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: spacing.md - 2,
+  },
+  brDivider: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  brLabel: { fontFamily: fonts.bodyBold, fontSize: 15, color: colors.muted },
+  brValue: { fontFamily: fonts.heavy, fontSize: 16, color: colors.text },
+  brValueAccent: { color: colors.primary },
 });

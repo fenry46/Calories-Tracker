@@ -7,7 +7,7 @@ name and estimated calories, which are deducted from the day's budget.
 
 ## Stack
 - **Expo SDK 54** (React 19.1 / RN 0.81) + **TypeScript** — pinned to 54 because public Expo Go only supports up to SDK 54
-- **React Navigation** (native-stack) — auth/onboarding/dashboard gating
+- **React Navigation** (native-stack + bottom-tabs) — auth/onboarding gating, then a Home · [camera FAB] · History tab bar, with Camera & Settings as modal/card stack screens
 - **Zustand** — `useAuthStore`, `useCalorieStore`
 - **Supabase** — Auth + Postgres + Row Level Security
 - **expo-secure-store** — encrypted session storage (Keychain / EncryptedSharedPreferences)
@@ -33,10 +33,11 @@ npm start              # then press i / a, or scan the QR with Expo Go
 ```
 src/
 ├── lib/            supabase client, env config
-├── navigation/     RootNavigator (session/profile gating) + types
+├── navigation/     RootNavigator (session/profile gating) + TabNavigator + types
 ├── store/          Zustand stores
-├── screens/        Auth, Onboarding, Dashboard, Camera
-├── components/     CalorieRing, LogItem, MetricInput
+├── screens/        Auth, Onboarding, Home, History, Camera, Settings
+├── components/     CalorieRing, LogItem, MetricInput, AppButton, Segmented,
+│                   BrandLogo, InfoBox, LabeledField
 ├── utils/          calorieCalculator, imageUpload, parseScan, date (+ tests)
 └── types/          generated DB types + domain models
 supabase/migrations/  SQL applied to the project (schema, RLS, RPCs)

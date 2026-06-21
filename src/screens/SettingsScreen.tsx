@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 
 import { MetricInput } from "../components/MetricInput";
 import { Segmented } from "../components/Segmented";
@@ -23,7 +24,8 @@ import {
   cmToIn,
   inToCm,
 } from "../utils/calorieCalculator";
-import { colors, radius, spacing } from "../theme";
+import { colors, fonts, radius, spacing } from "../theme";
+import type { RootStackScreenProps } from "../navigation/types";
 
 const GOAL_LABELS: Record<WeightGoal, string> = {
   LOSE: "Lose weight",
@@ -33,7 +35,7 @@ const GOAL_LABELS: Record<WeightGoal, string> = {
 
 const MIN_PASSWORD = 6;
 
-export function SettingsScreen() {
+export function SettingsScreen({ navigation }: RootStackScreenProps<"Settings">) {
   const profile = useCalorieStore((s) => s.profile);
   const updateProfile = useCalorieStore((s) => s.updateProfile);
   const session = useAuthStore((s) => s.session);
@@ -148,6 +150,13 @@ export function SettingsScreen() {
     <SafeAreaView style={styles.safe} edges={["top"]}>
       {/* Header */}
       <View style={styles.header}>
+        <Pressable
+          style={styles.backBtn}
+          onPress={() => navigation.goBack()}
+          accessibilityLabel="Back"
+        >
+          <Ionicons name="arrow-back" size={20} color={colors.text} />
+        </Pressable>
         <Text style={styles.title}>Settings</Text>
       </View>
 
@@ -287,10 +296,21 @@ export function SettingsScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
-  title: { fontSize: 24, fontWeight: "800", color: colors.text },
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: colors.stepBg,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  title: { fontSize: 24, fontFamily: fonts.black, color: colors.text },
   content: { padding: spacing.lg, paddingBottom: spacing.xl * 2 },
   sectionTitle: {
     fontSize: 14,

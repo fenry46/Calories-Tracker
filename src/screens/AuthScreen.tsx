@@ -17,7 +17,7 @@ import { BrandLogo } from "../components/BrandLogo";
 import { AppButton } from "../components/AppButton";
 import { LabeledField } from "../components/LabeledField";
 import { useAuthStore } from "../store/useAuthStore";
-import { colors, radius, spacing } from "../theme";
+import { colors, fonts, radius, spacing } from "../theme";
 
 type Mode = "signin" | "signup";
 
@@ -185,8 +185,8 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
   content: { padding: spacing.lg, paddingTop: spacing.xl },
-  heading: { fontSize: 28, fontWeight: "800", color: colors.text, marginTop: spacing.xl },
-  subtitle: { fontSize: 15, color: colors.muted, marginTop: spacing.xs },
+  heading: { fontSize: 28, fontFamily: fonts.black, color: colors.text, marginTop: spacing.xl },
+  subtitle: { fontSize: 15, fontFamily: fonts.bodySemibold, color: colors.muted, marginTop: spacing.xs },
   form: { marginTop: spacing.xl },
   input: {
     backgroundColor: colors.card,

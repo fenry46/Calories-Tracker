@@ -6,6 +6,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { AuthScreen } from "../screens/AuthScreen";
 import { OnboardingScreen } from "../screens/OnboardingScreen";
 import { CameraScreen } from "../screens/CameraScreen";
+import { SettingsScreen } from "../screens/SettingsScreen";
 import { TabNavigator } from "./TabNavigator";
 import { useAuthStore } from "../store/useAuthStore";
 import { useCalorieStore } from "../store/useCalorieStore";
@@ -62,6 +63,11 @@ export function RootNavigator() {
           name="Camera"
           component={CameraScreen}
           options={{ presentation: "fullScreenModal" }}
+        />
+        <Stack.Screen
+          name="Settings"
+          component={SettingsScreen}
+          options={{ presentation: "card" }}
         />
       </>
     );

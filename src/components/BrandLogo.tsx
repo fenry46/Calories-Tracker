@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, Image, StyleSheet } from "react-native";
 
-import { colors, spacing } from "../theme";
+import { colors, fonts, spacing } from "../theme";
 
 interface Props {
   /** Wordmark font size; the logo mark scales with it. Default 22. */
@@ -29,5 +29,5 @@ export function BrandLogo({ size = 22, iconOnly = false }: Props) {
 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
-  wordmark: { fontWeight: "800", color: colors.text, letterSpacing: -0.3 },
+  wordmark: { fontFamily: fonts.black, color: colors.text, letterSpacing: -0.3 },
 });

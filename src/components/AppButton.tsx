@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-import { colors, radius, spacing } from "../theme";
+import { colors, fonts, radius, shadow, spacing } from "../theme";
 
 type Variant = "primary" | "secondary" | "outline";
 
@@ -69,15 +69,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: radius.md,
-    paddingVertical: spacing.md,
+    borderRadius: radius.md + 2,
+    paddingVertical: spacing.md + 1,
     paddingHorizontal: spacing.lg,
   },
-  primary: { backgroundColor: colors.primary },
-  secondary: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
-  outline: { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border },
+  primary: { backgroundColor: colors.primary, ...shadow.button },
+  secondary: { backgroundColor: colors.card, borderWidth: 1.5, borderColor: colors.border },
+  outline: { backgroundColor: colors.card, borderWidth: 1.5, borderColor: colors.border },
   disabled: { opacity: 0.45 },
   pressed: { opacity: 0.75 },
   icon: { marginRight: spacing.sm },
-  label: { fontSize: 16, fontWeight: "700" },
+  label: { fontSize: 16, fontFamily: fonts.heavy },
 });

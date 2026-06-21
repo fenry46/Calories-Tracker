@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-import { colors, radius, spacing } from "../theme";
+import { colors, fonts, radius, spacing } from "../theme";
 
 interface Props {
   children: React.ReactNode;
@@ -26,5 +26,11 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: spacing.md,
   },
-  text: { flex: 1, color: colors.primaryDark, fontSize: 13, lineHeight: 18 },
+  text: {
+    flex: 1,
+    color: colors.primaryDark,
+    fontFamily: fonts.bodySemibold,
+    fontSize: 13,
+    lineHeight: 18,
+  },
 });

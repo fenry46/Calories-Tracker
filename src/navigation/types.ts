@@ -6,9 +6,8 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 
 export type MainTabParamList = {
-  Dashboard: undefined;
-  Log: undefined;
-  Settings: undefined;
+  Home: undefined;
+  History: undefined;
 };
 
 export type RootStackParamList = {
@@ -16,6 +15,7 @@ export type RootStackParamList = {
   Onboarding: undefined;
   Tabs: NavigatorScreenParams<MainTabParamList>;
   Camera: undefined;
+  Settings: undefined;
 };
 
 export type RootStackScreenProps<T extends keyof RootStackParamList> =
